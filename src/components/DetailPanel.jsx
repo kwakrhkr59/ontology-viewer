@@ -1,0 +1,277 @@
+import { useCallback } from 'react'
+import { getDisplayName, shorten, localName } from '../utils/ttlParser'
+
+function copyToClipboard(text, showToast) {
+  navigator.clipboard.writeText(text).then(() => showToast('URI 복사됨'))
+}
+
+function UriRow({ uri, showToast }) {
+  return (
+    <div className="detail-uri">
+      <span className="detail-uri-text">{uri}</span>
+      <button className="copy-btn" onClick={() => copyToClipboard(uri, showToast)} title="URI 복사">
+        ⧉
+      </button>
+    </div>
+  )
+}
+
+function Section({ title, children }) {
+  return (
+    <div className="detail-section">
+      <div className="detail-section-title">{title}</div>
+      {children}
+    </div>
+  )
+}
+
+function ClassChip({ uri, ontology, onSelectClass }) {
+  const cls = ontology.classes[uri]
+  const label = cls ? getDisplayName(cls) : localName(uri)
+  return (
+    <span className="chip chip-class" onClick={() => onSelectClass(uri)} title={uri}>
+      {label}
+    </span>
+  )
+}
+
+function ObjPropCard({ uri, ontology, direction, onSelectProperty, onSelectClass, prefixes }) {
+  const prop = ontology.objectProperties[uri]
+  if (!prop) return null
+  const label = getDisplayName(prop)
+  const relatedUris = direction === 'out' ? prop.ranges : prop.domains
+
+  return (
+    <div className="prop-card">
+      <div className="prop-card-name" onClick={() => onSelectProperty(uri, 'objectProperty')}>
+        {label}
+      </div>
+      {prop.comments[0] && (
+        <div className="prop-card-comment">{prop.comments[0]}</div>
+      )}
+      <div className="prop-card-meta">
+        <span className="tag tag-obj">Object</span>
+        {relatedUris.map(r => (
+          <span
+            key={r}
+            className={`tag ${ontology.classes[r] ? 'tag-range' : 'tag-range'}`}
+            style={{ cursor: ontology.classes[r] ? 'pointer' : 'default' }}
+            onClick={() => ontology.classes[r] && onSelectClass(r)}
+            title={r}
+          >
+            {direction === 'in' ? '← ' : ''}{shorten(r, prefixes)}
+          </span>
+        ))}
+        {prop.characteristics.map(c => (
+          <span key={c} className="tag tag-char">{c}</span>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function DataPropCard({ uri, ontology, onSelectProperty, prefixes }) {
+  const prop = ontology.dataProperties[uri]
+  if (!prop) return null
+  const label = getDisplayName(prop)
+  return (
+    <div className="prop-card">
+      <div className="prop-card-name" onClick={() => onSelectProperty(uri, 'dataProperty')}>
+        {label}
+      </div>
+      {prop.comments[0] && (
+        <div className="prop-card-comment">{prop.comments[0]}</div>
+      )}
+      <div className="prop-card-meta">
+        <span className="tag tag-data">DataProp</span>
+        {prop.ranges.map(r => (
+          <span key={r} className="tag tag-range" title={r}>{shorten(r, prefixes)}</span>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+export default function DetailPanel({ ontology, selectedItem, onSelectClass, onSelectProperty, showToast }) {
+  if (!ontology || !selectedItem) {
+    return (
+      <div className="detail-panel">
+        <div className="detail-placeholder">
+          <div className="detail-placeholder-icon">👆</div>
+          <p>좌측에서 클래스나<br />속성을 선택하세요</p>
+        </div>
+      </div>
+    )
+  }
+
+  const { type, uri } = selectedItem
+  const pfx = ontology.prefixes
+
+  if (type === 'class') {
+    const cls = ontology.classes[uri]
+    if (!cls) return null
+    const label = getDisplayName(cls)
+    return (
+      <div className="detail-panel">
+        <div className="detail-content">
+          <div className="detail-header">
+            <h2>{label}</h2>
+            <UriRow uri={uri} showToast={showToast} />
+          </div>
+
+          {cls.comments.length > 0 && (
+            <Section title="설명">
+              {cls.comments.map((c, i) => (
+                <p key={i} className="detail-comment">{c}</p>
+              ))}
+            </Section>
+          )}
+
+          {cls.superClasses.length > 0 && (
+            <Section title="상위 클래스 (SuperClass)">
+              <div className="chip-list">
+                {cls.superClasses.map(u => (
+                  <ClassChip key={u} uri={u} ontology={ontology} onSelectClass={onSelectClass} />
+                ))}
+              </div>
+            </Section>
+          )}
+
+          {cls.subClasses.length > 0 && (
+            <Section title={`하위 클래스 (SubClass) · ${cls.subClasses.length}개`}>
+              <div className="chip-list">
+                {cls.subClasses.map(u => (
+                  <ClassChip key={u} uri={u} ontology={ontology} onSelectClass={onSelectClass} />
+                ))}
+              </div>
+            </Section>
+          )}
+
+          {cls.outObjProps.length > 0 && (
+            <Section title={`아웃바운드 Object Properties · ${cls.outObjProps.length}개`}>
+              {cls.outObjProps.map(u => (
+                <ObjPropCard
+                  key={u}
+                  uri={u}
+                  direction="out"
+                  ontology={ontology}
+                  onSelectProperty={onSelectProperty}
+                  onSelectClass={onSelectClass}
+                  prefixes={pfx}
+                />
+              ))}
+            </Section>
+          )}
+
+          {cls.inObjProps.length > 0 && (
+            <Section title={`인바운드 Object Properties · ${cls.inObjProps.length}개`}>
+              {cls.inObjProps.map(u => (
+                <ObjPropCard
+                  key={u}
+                  uri={u}
+                  direction="in"
+                  ontology={ontology}
+                  onSelectProperty={onSelectProperty}
+                  onSelectClass={onSelectClass}
+                  prefixes={pfx}
+                />
+              ))}
+            </Section>
+          )}
+
+          {cls.dataProps.length > 0 && (
+            <Section title={`Data Properties · ${cls.dataProps.length}개`}>
+              {cls.dataProps.map(u => (
+                <DataPropCard
+                  key={u}
+                  uri={u}
+                  ontology={ontology}
+                  onSelectProperty={onSelectProperty}
+                  prefixes={pfx}
+                />
+              ))}
+            </Section>
+          )}
+
+          {!cls.superClasses.length && !cls.subClasses.length &&
+           !cls.outObjProps.length && !cls.inObjProps.length && !cls.dataProps.length && (
+            <p className="detail-comment">연결된 관계나 속성이 없습니다.</p>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  // Property detail
+  const isObj  = type === 'objectProperty'
+  const prop   = isObj ? ontology.objectProperties[uri] : ontology.dataProperties[uri]
+  if (!prop) return null
+  const label  = getDisplayName(prop)
+
+  return (
+    <div className="detail-panel">
+      <div className="detail-content">
+        <div className="detail-header">
+          <h2>{label}</h2>
+          <UriRow uri={uri} showToast={showToast} />
+        </div>
+
+        <div>
+          <span className={`tag ${isObj ? 'tag-obj' : 'tag-data'}`} style={{ fontSize: 13 }}>
+            {isObj ? 'Object Property' : 'Data Property'}
+          </span>
+        </div>
+
+        {prop.comments.length > 0 && (
+          <Section title="설명">
+            {prop.comments.map((c, i) => (
+              <p key={i} className="detail-comment">{c}</p>
+            ))}
+          </Section>
+        )}
+
+        {prop.domains.length > 0 && (
+          <Section title="Domain">
+            <div className="chip-list">
+              {prop.domains.map(u => (
+                <ClassChip key={u} uri={u} ontology={ontology} onSelectClass={onSelectClass} />
+              ))}
+            </div>
+          </Section>
+        )}
+
+        {prop.ranges.length > 0 && (
+          <Section title="Range">
+            <div className="chip-list">
+              {prop.ranges.map(u => (
+                ontology.classes[u]
+                  ? <ClassChip key={u} uri={u} ontology={ontology} onSelectClass={onSelectClass} />
+                  : <span key={u} className="chip chip-range" title={u}>{shorten(u, pfx)}</span>
+              ))}
+            </div>
+          </Section>
+        )}
+
+        {isObj && prop.characteristics.length > 0 && (
+          <Section title="특성 (Characteristics)">
+            <div className="chip-list">
+              {prop.characteristics.map(c => (
+                <span key={c} className="tag tag-char" style={{ padding: '4px 12px', borderRadius: 12 }}>{c}</span>
+              ))}
+            </div>
+          </Section>
+        )}
+
+        {isObj && prop.inverseOf.length > 0 && (
+          <Section title="InverseOf">
+            <div className="chip-list">
+              {prop.inverseOf.map(u => (
+                <span key={u} className="chip chip-range" title={u}>{shorten(u, pfx)}</span>
+              ))}
+            </div>
+          </Section>
+        )}
+      </div>
+    </div>
+  )
+}
