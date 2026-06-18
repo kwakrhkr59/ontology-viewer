@@ -26,10 +26,12 @@ export default function App() {
       setFileName(name)
       setSelectedItem(null)
       setParseError(null)
-      showToast('온톨로지 파싱 완료!')
+      const classCount = Object.keys(parsed.classes).length
+      showToast(`파싱 완료 — 클래스 ${classCount}개`)
     } catch (err) {
+      console.error('[OntologyViewer] parse error:', err)
       setParseError(err.message)
-      showToast('파싱 오류: ' + err.message)
+      setOntology(null)
     }
   }, [showToast])
 
@@ -74,6 +76,17 @@ export default function App() {
           />
         </div>
       </div>
+
+      {parseError && (
+        <div style={{
+          position: 'fixed', bottom: 20, left: '50%', transform: 'translateX(-50%)',
+          background: '#3a1020', border: '1px solid #8b2040', color: '#ff8fa8',
+          padding: '10px 20px', borderRadius: 8, fontSize: 13, zIndex: 9999,
+          maxWidth: '80vw', wordBreak: 'break-all',
+        }}>
+          ⚠️ {parseError}
+        </div>
+      )}
 
       <div className={`toast${toast.visible ? ' visible' : ''}`}>{toast.msg}</div>
     </>

@@ -22,40 +22,45 @@ const R = {
   Irreflexive: 'http://www.w3.org/2002/07/owl#IrreflexiveProperty',
 }
 
-export function parseTTLText(text) {
-  const store = new Store()
+function extractPrefixes(text) {
   const prefixes = {}
-  let parseError = null
+  // matches both @prefix and PREFIX (SPARQL style)
+  const re = /(?:@prefix|PREFIX)\s+(\w*)\s*:\s*<([^>]+)>/gi
+  let m
+  while ((m = re.exec(text)) !== null) {
+    if (m[1] !== undefined) prefixes[m[1]] = m[2]
+  }
+  return prefixes
+}
 
+export function parseTTLText(text) {
+  const prefixes = extractPrefixes(text)
+
+  // Use the synchronous API: parse(string) → Quad[]
   const parser = new Parser()
-  parser.parse(text, (err, quad, pfxs) => {
-    if (err) { parseError = err; return }
-    if (quad) {
-      store.addQuad(quad)
-    } else if (pfxs) {
-      Object.entries(pfxs).forEach(([p, ns]) => {
-        if (p !== null && p !== undefined && p !== '') {
-          prefixes[p] = typeof ns === 'string' ? ns : ns.value
-        }
-      })
-    }
-  })
+  let quads
+  try {
+    quads = parser.parse(text)
+  } catch (err) {
+    throw new Error('TTL 파싱 오류: ' + err.message)
+  }
 
-  if (parseError) throw new Error('TTL 파싱 오류: ' + parseError.message)
+  const store = new Store()
+  store.addQuads(quads)
 
   const vals = (subj, pred) =>
-    store.getQuads(subj, pred, null).map(q => q.object.value)
+    store.getQuads(subj, pred, null, null).map(q => q.object.value)
 
   const hasType = (subj, type) =>
-    store.countQuads(subj, R.type, type) > 0
+    store.countQuads(subj, R.type, type, null) > 0
 
   // ── Classes ──────────────────────────────────────────────
   const classUris = new Set()
-  store.getQuads(null, R.type, R.Class).forEach(q => classUris.add(q.subject.value))
-  store.getQuads(null, R.type, R.rdfsClass).forEach(q => classUris.add(q.subject.value))
-  store.getQuads(null, R.subClassOf, null).forEach(q => {
+  store.getQuads(null, R.type, R.Class, null).forEach(q => classUris.add(q.subject.value))
+  store.getQuads(null, R.type, R.rdfsClass, null).forEach(q => classUris.add(q.subject.value))
+  store.getQuads(null, R.subClassOf, null, null).forEach(q => {
     if (!q.subject.value.startsWith('_:')) classUris.add(q.subject.value)
-    if (!q.object.value.startsWith('_:') && q.object.termType !== 'BlankNode') classUris.add(q.object.value)
+    if (q.object.termType === 'NamedNode') classUris.add(q.object.value)
   })
 
   const classes = {}
@@ -65,11 +70,13 @@ export function parseTTLText(text) {
       uri,
       labels:       vals(uri, R.label),
       comments:     vals(uri, R.comment),
-      superClasses: vals(uri, R.subClassOf).filter(v => !v.startsWith('_:')),
-      subClasses:   [],
-      outObjProps:  [],
-      inObjProps:   [],
-      dataProps:    [],
+      superClasses: store.getQuads(uri, R.subClassOf, null, null)
+        .filter(q => q.object.termType === 'NamedNode')
+        .map(q => q.object.value),
+      subClasses:  [],
+      outObjProps: [],
+      inObjProps:  [],
+      dataProps:   [],
     }
   })
 
@@ -81,7 +88,7 @@ export function parseTTLText(text) {
 
   // ── Object Properties ─────────────────────────────────────
   const objectProperties = {}
-  store.getQuads(null, R.type, R.ObjProp).forEach(q => {
+  store.getQuads(null, R.type, R.ObjProp, null).forEach(q => {
     const uri = q.subject.value
     if (uri.startsWith('_:')) return
     const chars = []
@@ -92,8 +99,12 @@ export function parseTTLText(text) {
     if (hasType(uri, R.Asymmetric))  chars.push('Asymmetric')
     if (hasType(uri, R.Reflexive))   chars.push('Reflexive')
     if (hasType(uri, R.Irreflexive)) chars.push('Irreflexive')
-    const domains = vals(uri, R.domain).filter(v => !v.startsWith('_:'))
-    const ranges  = vals(uri, R.range).filter(v => !v.startsWith('_:'))
+    const domains = store.getQuads(uri, R.domain, null, null)
+      .filter(q2 => q2.object.termType === 'NamedNode')
+      .map(q2 => q2.object.value)
+    const ranges = store.getQuads(uri, R.range, null, null)
+      .filter(q2 => q2.object.termType === 'NamedNode')
+      .map(q2 => q2.object.value)
     objectProperties[uri] = {
       uri,
       labels:          vals(uri, R.label),
@@ -109,10 +120,12 @@ export function parseTTLText(text) {
 
   // ── Data Properties ───────────────────────────────────────
   const dataProperties = {}
-  store.getQuads(null, R.type, R.DataProp).forEach(q => {
+  store.getQuads(null, R.type, R.DataProp, null).forEach(q => {
     const uri = q.subject.value
     if (uri.startsWith('_:')) return
-    const domains = vals(uri, R.domain).filter(v => !v.startsWith('_:'))
+    const domains = store.getQuads(uri, R.domain, null, null)
+      .filter(q2 => q2.object.termType === 'NamedNode')
+      .map(q2 => q2.object.value)
     dataProperties[uri] = {
       uri,
       labels:   vals(uri, R.label),
@@ -125,16 +138,25 @@ export function parseTTLText(text) {
 
   // ── Annotation Properties ─────────────────────────────────
   const annotationProperties = {}
-  store.getQuads(null, R.type, R.AnnProp).forEach(q => {
+  store.getQuads(null, R.type, R.AnnProp, null).forEach(q => {
     const uri = q.subject.value
     if (uri.startsWith('_:')) return
     annotationProperties[uri] = {
       uri,
       labels:   vals(uri, R.label),
       comments: vals(uri, R.comment),
-      domains:  vals(uri, R.domain).filter(v => !v.startsWith('_:')),
+      domains:  store.getQuads(uri, R.domain, null, null)
+        .filter(q2 => q2.object.termType === 'NamedNode')
+        .map(q2 => q2.object.value),
       ranges:   vals(uri, R.range),
     }
+  })
+
+  console.log('[OntologyViewer] parsed:', {
+    prefixes: Object.keys(prefixes).length,
+    classes: Object.keys(classes).length,
+    objectProperties: Object.keys(objectProperties).length,
+    dataProperties: Object.keys(dataProperties).length,
   })
 
   return { prefixes, classes, objectProperties, dataProperties, annotationProperties }
@@ -161,10 +183,9 @@ export function getDisplayName(item) {
 export function getNsPrefix(uri, prefixes) {
   if (prefixes) {
     for (const [p, ns] of Object.entries(prefixes)) {
-      if (uri.startsWith(ns)) return p
+      if (uri.startsWith(ns)) return p || ns
     }
   }
   const m = uri.match(/^(.+[#\/])[^#\/]+$/)
-  if (m) return m[1]
-  return '(default)'
+  return m ? m[1] : '(default)'
 }
