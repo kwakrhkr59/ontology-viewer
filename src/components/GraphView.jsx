@@ -1,4 +1,4 @@
-import { useRef, useEffect, useCallback } from 'react'
+import { useRef, useEffect, useLayoutEffect, useCallback } from 'react'
 import cytoscape from 'cytoscape'
 import { getDisplayName, shorten } from '../utils/ttlParser'
 
@@ -19,7 +19,7 @@ const CY_STYLE = [
       'border-width': 2,
       'border-color': '#2e3247',
       'text-wrap': 'wrap',
-      'text-max-width': 80,
+      'text-max-width': 90,
     },
   },
   {
@@ -63,110 +63,151 @@ const CY_STYLE = [
 ]
 
 export default function GraphView({ ontology, selectedItem, onSelectClass, showToast }) {
-  const containerRef  = useRef(null)
-  const cyRef         = useRef(null)
-  const layoutIdxRef  = useRef(0)
-  const onSelectRef   = useRef(onSelectClass)
-  useEffect(() => { onSelectRef.current = onSelectClass }, [onSelectClass])
+  const containerRef = useRef(null)
+  const cyRef        = useRef(null)
+  const layoutIdx    = useRef(0)
+  const ontologyRef  = useRef(ontology)
+  useEffect(() => { ontologyRef.current = ontology }, [ontology])
 
-  // Init Cytoscape once
-  useEffect(() => {
+  // Cytoscape 초기화 (useLayoutEffect: DOM 크기 확정 후 실행)
+  useLayoutEffect(() => {
     if (!containerRef.current) return
-    cyRef.current = cytoscape({
+
+    const cy = cytoscape({
       container: containerRef.current,
       style: CY_STYLE,
       layout: { name: 'preset' },
       wheelSensitivity: 0.3,
-      minZoom: 0.1,
-      maxZoom: 4,
+      minZoom: 0.05,
+      maxZoom: 5,
     })
-    cyRef.current.on('tap', 'node', e => {
-      const id = e.target.id()
-      if (ontology?.classes[id]) onSelectRef.current(id)
-    })
-    return () => cyRef.current?.destroy()
-  }, [])
+    cyRef.current = cy
 
-  // Rebuild graph when selection changes
+    cy.on('tap', 'node', e => {
+      const id = e.target.id()
+      if (ontologyRef.current?.classes[id]) onSelectClass(id)
+    })
+
+    // 컨테이너 리사이즈 감지
+    const ro = new ResizeObserver(() => {
+      cy.resize()
+      cy.fit(undefined, 40)
+    })
+    ro.observe(containerRef.current)
+
+    return () => {
+      ro.disconnect()
+      cy.destroy()
+    }
+  }, [])  // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 선택 항목 변경 시 그래프 업데이트
   useEffect(() => {
-    if (!cyRef.current || !ontology || !selectedItem) return
+    const cy  = cyRef.current
+    const ont = ontologyRef.current
+    if (!cy || !ont || !selectedItem) return
 
     if (selectedItem.type === 'class') {
-      renderClassGraph(selectedItem.uri)
+      buildClassGraph(cy, ont, selectedItem.uri)
     } else {
-      renderPropertyGraph(selectedItem.uri, selectedItem.type)
+      buildPropGraph(cy, ont, selectedItem.uri, selectedItem.type)
     }
-  }, [selectedItem, ontology])
+  }, [selectedItem])
 
-  function renderClassGraph(uri) {
-    const cy  = cyRef.current
-    const cls = ontology.classes[uri]
+  // ontology 교체 시 그래프 초기화
+  useEffect(() => {
+    cyRef.current?.elements().remove()
+  }, [ontology])
+
+  function buildClassGraph(cy, ont, uri) {
+    const cls = ont.classes[uri]
     if (!cls) return
 
     const nodes = new Map()
     const edges = []
+    const addedEdges = new Set()
 
-    const addNode = (u, classes = '') => {
+    const addNode = (u, cls2 = '') => {
       if (nodes.has(u)) return
-      const c = ontology.classes[u]
-      nodes.set(u, { data: { id: u, label: c ? getDisplayName(c) : shorten(u, ontology.prefixes) }, classes })
+      const c = ont.classes[u]
+      nodes.set(u, {
+        data: { id: u, label: c ? getDisplayName(c) : shorten(u, ont.prefixes) },
+        classes: cls2,
+      })
     }
 
     addNode(uri, 'focus')
 
     cls.superClasses.forEach(sup => {
       addNode(sup)
-      edges.push({ data: { id: `sub_${uri}_${sup}`, source: uri, target: sup, label: '' }, classes: 'subclass' })
+      const eid = `sc_${uri}_${sup}`
+      if (!addedEdges.has(eid)) {
+        addedEdges.add(eid)
+        edges.push({ data: { id: eid, source: uri, target: sup, label: '' }, classes: 'subclass' })
+      }
     })
+
     cls.subClasses.forEach(sub => {
       addNode(sub)
-      edges.push({ data: { id: `sub_${sub}_${uri}`, source: sub, target: uri, label: '' }, classes: 'subclass' })
+      const eid = `sc_${sub}_${uri}`
+      if (!addedEdges.has(eid)) {
+        addedEdges.add(eid)
+        edges.push({ data: { id: eid, source: sub, target: uri, label: '' }, classes: 'subclass' })
+      }
     })
+
     cls.outObjProps.forEach(pUri => {
-      const p = ontology.objectProperties[pUri]
+      const p = ont.objectProperties[pUri]
       if (!p) return
+      const label = getDisplayName(p)
       p.ranges.forEach(r => {
         addNode(r)
         const eid = `op_${pUri}_${uri}_${r}`
-        if (!edges.find(e => e.data.id === eid))
-          edges.push({ data: { id: eid, source: uri, target: r, label: getDisplayName(p) } })
+        if (!addedEdges.has(eid)) {
+          addedEdges.add(eid)
+          edges.push({ data: { id: eid, source: uri, target: r, label } })
+        }
       })
     })
+
     cls.inObjProps.forEach(pUri => {
-      const p = ontology.objectProperties[pUri]
+      const p = ont.objectProperties[pUri]
       if (!p) return
+      const label = getDisplayName(p)
       p.domains.forEach(d => {
         addNode(d)
         const eid = `op_${pUri}_${d}_${uri}`
-        if (!edges.find(e => e.data.id === eid))
-          edges.push({ data: { id: eid, source: d, target: uri, label: getDisplayName(p) } })
+        if (!addedEdges.has(eid)) {
+          addedEdges.add(eid)
+          edges.push({ data: { id: eid, source: d, target: uri, label } })
+        }
       })
     })
 
-    applyGraph([...nodes.values(), ...edges])
+    applyGraph(cy, [...nodes.values(), ...edges])
   }
 
-  function renderPropertyGraph(uri, type) {
-    const cy   = cyRef.current
+  function buildPropGraph(cy, ont, uri, type) {
     const prop = type === 'objectProperty'
-      ? ontology.objectProperties[uri]
-      : ontology.dataProperties[uri]
+      ? ont.objectProperties[uri]
+      : ont.dataProperties[uri]
     if (!prop || !prop.domains.length) return
 
+    const label = getDisplayName(prop)
     const nodes = new Map()
     const edges = []
-    const label = getDisplayName(prop)
 
-    const addNode = (u, cls = '') => {
-      if (nodes.has(u)) return
-      const c = ontology.classes[u]
-      nodes.set(u, { data: { id: u, label: c ? getDisplayName(c) : shorten(u, ontology.prefixes) }, classes: cls })
-    }
-
-    prop.domains.forEach(d => addNode(d, 'focus'))
+    prop.domains.forEach(d => {
+      if (!nodes.has(d)) {
+        const c = ont.classes[d]
+        nodes.set(d, { data: { id: d, label: c ? getDisplayName(c) : shorten(d, ont.prefixes) }, classes: 'focus' })
+      }
+    })
     prop.ranges.forEach(r => {
-      if (ontology.classes[r]) addNode(r)
-      else if (!nodes.has(r)) nodes.set(r, { data: { id: r, label: shorten(r, ontology.prefixes) } })
+      if (!nodes.has(r)) {
+        const c = ont.classes[r]
+        nodes.set(r, { data: { id: r, label: c ? getDisplayName(c) : shorten(r, ont.prefixes) } })
+      }
     })
     prop.domains.forEach(d =>
       prop.ranges.forEach(r =>
@@ -174,64 +215,72 @@ export default function GraphView({ ontology, selectedItem, onSelectClass, showT
       )
     )
 
-    applyGraph([...nodes.values(), ...edges])
+    applyGraph(cy, [...nodes.values(), ...edges])
   }
 
-  function applyGraph(elements) {
-    const cy = cyRef.current
+  function applyGraph(cy, elements) {
     cy.elements().remove()
     cy.add(elements)
-    runLayout()
+    runLayout(cy)
   }
 
-  function runLayout(name) {
-    const layoutName = name || LAYOUTS[layoutIdxRef.current]
-    cyRef.current?.layout({
+  function runLayout(cy, name) {
+    const layoutName = name || LAYOUTS[layoutIdx.current]
+    cy.layout({
       name: layoutName,
       animate: true,
       animationDuration: 350,
       padding: 50,
       nodeDimensionsIncludeLabels: true,
       nodeRepulsion: 6000,
-      idealEdgeLength: 120,
+      idealEdgeLength: 130,
     }).run()
   }
 
-  const handleFit = () => cyRef.current?.fit(undefined, 50)
+  const handleFit = () => { cyRef.current?.fit(undefined, 40) }
 
   const handleToggleLayout = () => {
-    layoutIdxRef.current = (layoutIdxRef.current + 1) % LAYOUTS.length
-    runLayout()
-    showToast('레이아웃: ' + LAYOUTS[layoutIdxRef.current])
+    layoutIdx.current = (layoutIdx.current + 1) % LAYOUTS.length
+    if (cyRef.current?.elements().length) runLayout(cyRef.current)
+    showToast('레이아웃: ' + LAYOUTS[layoutIdx.current])
   }
 
   const handleFullGraph = useCallback(() => {
-    if (!ontology) return
+    const cy  = cyRef.current
+    const ont = ontologyRef.current
+    if (!cy || !ont) return
+
     const nodes = new Map()
     const edges = []
+    const addedEdges = new Set()
 
-    Object.values(ontology.classes).forEach(cls => {
-      nodes.set(cls.uri, { data: { id: cls.uri, label: getDisplayName(cls) } })
+    Object.values(ont.classes).forEach(cls => {
+      if (!nodes.has(cls.uri))
+        nodes.set(cls.uri, { data: { id: cls.uri, label: getDisplayName(cls) } })
+
       cls.superClasses.forEach(sup => {
-        if (ontology.classes[sup]) {
-          if (!nodes.has(sup))
-            nodes.set(sup, { data: { id: sup, label: getDisplayName(ontology.classes[sup]) } })
-          edges.push({ data: { id: `sub_${cls.uri}_${sup}`, source: cls.uri, target: sup, label: '' }, classes: 'subclass' })
+        if (!ont.classes[sup]) return
+        if (!nodes.has(sup))
+          nodes.set(sup, { data: { id: sup, label: getDisplayName(ont.classes[sup]) } })
+        const eid = `sc_${cls.uri}_${sup}`
+        if (!addedEdges.has(eid)) {
+          addedEdges.add(eid)
+          edges.push({ data: { id: eid, source: cls.uri, target: sup, label: '' }, classes: 'subclass' })
         }
       })
     })
 
-    Object.values(ontology.objectProperties).forEach(p => {
-      p.domains.forEach(d =>
-        p.ranges.forEach(r => {
-          if (ontology.classes[d] && ontology.classes[r]) {
-            edges.push({ data: { id: `op_${p.uri}_${d}_${r}`, source: d, target: r, label: getDisplayName(p) } })
-          }
-        })
-      )
+    Object.values(ont.objectProperties).forEach(p => {
+      p.domains.forEach(d => p.ranges.forEach(r => {
+        if (!ont.classes[d] || !ont.classes[r]) return
+        const eid = `op_${p.uri}_${d}_${r}`
+        if (!addedEdges.has(eid)) {
+          addedEdges.add(eid)
+          edges.push({ data: { id: eid, source: d, target: r, label: getDisplayName(p) } })
+        }
+      }))
     })
 
-    const cy = cyRef.current
     cy.elements().remove()
     cy.add([...nodes.values(), ...edges])
     cy.layout({
@@ -239,20 +288,20 @@ export default function GraphView({ ontology, selectedItem, onSelectClass, showT
       animate: true,
       animationDuration: 500,
       padding: 50,
-      nodeRepulsion: 9000,
-      idealEdgeLength: 140,
+      nodeRepulsion: 10000,
+      idealEdgeLength: 150,
       nodeDimensionsIncludeLabels: true,
     }).run()
-    showToast('전체 그래프 표시 중')
-  }, [ontology])
 
-  const hasGraph = selectedItem !== null
+    showToast('전체 그래프 표시 중')
+  }, [showToast])
 
   return (
     <div className="graph-area">
-      <div ref={containerRef} id="cy" />
+      {/* absolute inset:0 으로 Cytoscape가 부모 크기를 정확히 인식 */}
+      <div ref={containerRef} className="cy-container" />
 
-      {!hasGraph && (
+      {!selectedItem && (
         <div className="graph-placeholder">
           <div className="graph-placeholder-icon">🕸️</div>
           <p>클래스를 선택하면 관계 그래프가 표시됩니다</p>
@@ -268,22 +317,10 @@ export default function GraphView({ ontology, selectedItem, onSelectClass, showT
       </div>
 
       <div className="graph-legend">
-        <div className="legend-item">
-          <div className="legend-dot" style={{ background: '#6c8ef5' }} />
-          선택 클래스
-        </div>
-        <div className="legend-item">
-          <div className="legend-dot" style={{ background: '#3dd68c' }} />
-          연결 클래스
-        </div>
-        <div className="legend-item">
-          <div className="legend-line" style={{ background: '#f0883e' }} />
-          Object Property
-        </div>
-        <div className="legend-item">
-          <div className="legend-dashed" style={{ borderColor: '#4a4f6a' }} />
-          SubClassOf
-        </div>
+        <div className="legend-item"><div className="legend-dot" style={{ background: '#6c8ef5' }} />선택 클래스</div>
+        <div className="legend-item"><div className="legend-dot" style={{ background: '#3dd68c' }} />연결 클래스</div>
+        <div className="legend-item"><div className="legend-line" style={{ background: '#f0883e' }} />Object Property</div>
+        <div className="legend-item"><div className="legend-dashed" style={{ borderColor: '#4a4f6a' }} />SubClassOf</div>
       </div>
     </div>
   )
