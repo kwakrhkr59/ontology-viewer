@@ -36,22 +36,26 @@
   --char-fg:  #e8a055;
 }
 
-html {
+html, body {
   height: 100%;
+  overflow: hidden;
 }
 
-/* Grid로 전체 높이 명시 → 자식 패널이 자신의 높이를 정확히 앎 */
 body {
-  height: 100vh;
-  overflow: hidden;
-  display: grid;
-  grid-template-rows: 48px 1fr;   /* header | content */
   background: var(--bg);
   color: var(--text);
   font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
   font-size: 13px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+}
+
+/* #root를 레이아웃에서 투명하게 만들어
+   .header와 .layout이 body의 직접 자식처럼 동작하게 함 */
+#root {
+  height: 100%;
+  display: grid;
+  grid-template-rows: 48px 1fr;
 }
 
 /* ── Scrollbar ── */
@@ -157,7 +161,8 @@ body {
 .layout {
   display: grid;
   grid-template-columns: 260px 360px 1fr;
-  overflow: hidden;       /* 전체 레이아웃이 뷰포트를 넘지 않게 */
+  overflow: hidden;
+  min-height: 0;          /* grid 1fr 행에서 높이를 부모로부터 받기 위해 필요 */
 }
 
 /* ══════════════════════════════════════════
