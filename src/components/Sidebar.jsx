@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { getDisplayName, localName } from '../utils/ttlParser'
+import { getDisplayName } from '../utils/ttlParser'
 
 const TABS = [
   { id: 'classes',   label: '클래스' },
@@ -7,43 +7,36 @@ const TABS = [
   { id: 'dataProps', label: 'Data Props' },
 ]
 
-// 재귀 트리 노드
 function ClassTreeNode({ cls, classes, depth, selectedUri, onSelect, expanded, onToggle }) {
-  if (depth > 30) return null  // 순환 참조 방어
+  if (depth > 30) return null
 
   const childUris = cls.subClasses.filter(uri => classes[uri])
   const hasChildren = childUris.length > 0
   const isExpanded = expanded.has(cls.uri)
   const isSelected = selectedUri === cls.uri
-  const label = getDisplayName(cls)
 
   return (
     <div>
       <div
         className={`list-item${isSelected ? ' selected' : ''}`}
-        style={{ paddingLeft: `${4 + depth * 16}px` }}
+        style={{ paddingLeft: `${4 + depth * 4}px` }}
         onClick={() => onSelect(cls.uri)}
         title={cls.uri}
       >
         {hasChildren ? (
-          <span
-            className="tree-toggle"
-            onClick={e => { e.stopPropagation(); onToggle(cls.uri) }}
-          >
+          <span className="tree-toggle" onClick={e => { e.stopPropagation(); onToggle(cls.uri) }}>
             {isExpanded ? '▾' : '▸'}
           </span>
         ) : (
           <span className="tree-toggle-placeholder" />
         )}
-        <span className="list-item-icon">◆</span>
-        <span className="list-item-label">{label}</span>
-        {hasChildren && (
-          <span className="list-item-sub">{childUris.length}</span>
-        )}
+        <span className="tree-class-dot" />
+        <span className="list-item-label">{getDisplayName(cls)}</span>
+        {hasChildren && <span className="list-item-count">{childUris.length}</span>}
       </div>
 
       {isExpanded && hasChildren && (
-        <div>
+        <div className="tree-children">
           {childUris
             .map(uri => classes[uri])
             .sort((a, b) => getDisplayName(a).localeCompare(getDisplayName(b)))
@@ -80,7 +73,6 @@ export default function Sidebar({ ontology, selectedItem, onSelectClass, onSelec
 
   const q = query.toLowerCase().trim()
 
-  // 루트 클래스: 상위 클래스가 없거나 상위 클래스가 ontology에 없는 것
   const rootClasses = useMemo(() => {
     if (!ontology) return []
     return Object.values(ontology.classes)
@@ -88,14 +80,10 @@ export default function Sidebar({ ontology, selectedItem, onSelectClass, onSelec
       .sort((a, b) => getDisplayName(a).localeCompare(getDisplayName(b)))
   }, [ontology])
 
-  // 검색 시 플랫 리스트
   const flatFiltered = useMemo(() => {
     if (!ontology || !q) return null
     return Object.values(ontology.classes)
-      .filter(cls => {
-        const label = getDisplayName(cls)
-        return label.toLowerCase().includes(q) || cls.uri.toLowerCase().includes(q)
-      })
+      .filter(cls => getDisplayName(cls).toLowerCase().includes(q) || cls.uri.toLowerCase().includes(q))
       .sort((a, b) => getDisplayName(a).localeCompare(getDisplayName(b)))
   }, [ontology, q])
 
@@ -105,19 +93,12 @@ export default function Sidebar({ ontology, selectedItem, onSelectClass, onSelec
       ? Object.values(ontology.objectProperties)
       : Object.values(ontology.dataProperties)
     return src
-      .filter(p => {
-        if (!q) return true
-        const name = getDisplayName(p)
-        return name.toLowerCase().includes(q) || p.uri.toLowerCase().includes(q)
-      })
+      .filter(p => !q || getDisplayName(p).toLowerCase().includes(q) || p.uri.toLowerCase().includes(q))
       .sort((a, b) => getDisplayName(a).localeCompare(getDisplayName(b)))
   }, [ontology, activeTab, q])
 
   const selectedUri  = selectedItem?.uri
   const selectedType = selectedItem?.type
-
-  const isSelectedProp = (type, uri) =>
-    selectedType === type && selectedUri === uri
 
   return (
     <div className="sidebar">
@@ -134,11 +115,7 @@ export default function Sidebar({ ontology, selectedItem, onSelectClass, onSelec
       </div>
 
       <div className="sidebar-search">
-        <input
-          value={query}
-          onChange={e => setQuery(e.target.value)}
-          placeholder="검색..."
-        />
+        <input value={query} onChange={e => setQuery(e.target.value)} placeholder="검색..." />
       </div>
 
       <div className="sidebar-list">
@@ -146,28 +123,25 @@ export default function Sidebar({ ontology, selectedItem, onSelectClass, onSelec
           <div className="sidebar-empty">TTL 파일을 업로드하면<br />목록이 표시됩니다</div>
         )}
 
-        {/* ── 클래스 탭 ── */}
+        {/* 클래스 탭 */}
         {ontology && activeTab === 'classes' && (
-          q ? (
-            // 검색 중: 플랫 리스트
-            flatFiltered.length === 0
+          q
+            ? flatFiltered.length === 0
               ? <div className="sidebar-empty">검색 결과 없음</div>
               : flatFiltered.map(cls => (
                   <div
                     key={cls.uri}
                     className={`list-item${selectedUri === cls.uri ? ' selected' : ''}`}
-                    style={{ paddingLeft: 10 }}
+                    style={{ paddingLeft: 6 }}
                     onClick={() => onSelectClass(cls.uri)}
                     title={cls.uri}
                   >
                     <span className="tree-toggle-placeholder" />
-                    <span className="list-item-icon">◆</span>
+                    <span className="tree-class-dot" />
                     <span className="list-item-label">{getDisplayName(cls)}</span>
                   </div>
                 ))
-          ) : (
-            // 일반: 계층 트리
-            rootClasses.length === 0
+            : rootClasses.length === 0
               ? <div className="sidebar-empty">클래스 없음</div>
               : rootClasses.map(cls => (
                   <ClassTreeNode
@@ -181,44 +155,45 @@ export default function Sidebar({ ontology, selectedItem, onSelectClass, onSelec
                     onToggle={onToggle}
                   />
                 ))
-          )
         )}
 
-        {/* ── Object Props 탭 ── */}
+        {/* Object Props 탭 */}
         {ontology && activeTab === 'objProps' && (
           filteredProps.length === 0
             ? <div className="sidebar-empty">검색 결과 없음</div>
             : filteredProps.map(prop => (
                 <div
                   key={prop.uri}
-                  className={`list-item${isSelectedProp('objectProperty', prop.uri) ? ' selected' : ''}`}
-                  style={{ paddingLeft: 10 }}
+                  className={`list-item${selectedType === 'objectProperty' && selectedUri === prop.uri ? ' selected' : ''}`}
+                  style={{ paddingLeft: 8 }}
                   onClick={() => onSelectProperty(prop.uri, 'objectProperty')}
                   title={prop.uri}
                 >
-                  <span className="list-item-prop-icon" style={{ color: 'var(--tag-obj-fg)' }}>→</span>
+                  <span className="list-item-prop-icon" style={{ color: 'var(--obj-fg)' }}>→</span>
                   <span className="list-item-label">{getDisplayName(prop)}</span>
                 </div>
               ))
         )}
 
-        {/* ── Data Props 탭 ── */}
+        {/* Data Props 탭 */}
         {ontology && activeTab === 'dataProps' && (
           filteredProps.length === 0
             ? <div className="sidebar-empty">검색 결과 없음</div>
             : filteredProps.map(prop => (
                 <div
                   key={prop.uri}
-                  className={`list-item${isSelectedProp('dataProperty', prop.uri) ? ' selected' : ''}`}
-                  style={{ paddingLeft: 10 }}
+                  className={`list-item${selectedType === 'dataProperty' && selectedUri === prop.uri ? ' selected' : ''}`}
+                  style={{ paddingLeft: 8 }}
                   onClick={() => onSelectProperty(prop.uri, 'dataProperty')}
                   title={prop.uri}
                 >
-                  <span className="list-item-prop-icon" style={{ color: 'var(--tag-data-fg)' }}>#</span>
+                  <span className="list-item-prop-icon" style={{ color: 'var(--data-fg)' }}>#</span>
                   <span className="list-item-label">{getDisplayName(prop)}</span>
                 </div>
               ))
         )}
+
+        <div style={{ height: 8 }} />
       </div>
     </div>
   )

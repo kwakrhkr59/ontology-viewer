@@ -15,18 +15,23 @@ export default function Header({ ontology, fileName, onFileLoad }) {
   const stats = ontology
     ? [
         { num: Object.keys(ontology.classes).length,             lbl: 'Classes' },
-        { num: Object.keys(ontology.objectProperties).length,    lbl: 'Obj Props' },
-        { num: Object.keys(ontology.dataProperties).length,      lbl: 'Data Props' },
-        { num: Object.keys(ontology.annotationProperties).length,lbl: 'Ann Props' },
+        { num: Object.keys(ontology.objectProperties).length,    lbl: 'Obj' },
+        { num: Object.keys(ontology.dataProperties).length,      lbl: 'Data' },
+        { num: Object.keys(ontology.annotationProperties).length,lbl: 'Ann' },
       ]
     : null
 
   return (
     <header className="header">
-      <span className="header-title">🔷 Ontology Viewer</span>
+      <div className="header-logo">
+        <span className="header-logo-dot" />
+        Ontology Viewer
+      </div>
+
+      <div className="header-divider" />
 
       <button className="upload-btn" onClick={() => inputRef.current.click()}>
-        TTL 파일 열기
+        Open TTL
       </button>
       <input
         ref={inputRef}
@@ -36,14 +41,14 @@ export default function Header({ ontology, fileName, onFileLoad }) {
         onChange={handleFile}
       />
 
-      <span className="file-name">{fileName || '파일을 업로드하세요'}</span>
+      {fileName && <span className="file-name">{fileName}</span>}
 
       {stats && (
         <div className="stats">
           {stats.map(({ num, lbl }) => (
-            <div key={lbl} className="stat">
-              <div className="stat-num">{num}</div>
-              <div className="stat-lbl">{lbl}</div>
+            <div key={lbl} className="stat-pill">
+              <span className="stat-pill-num">{num}</span>
+              <span>{lbl}</span>
             </div>
           ))}
         </div>
