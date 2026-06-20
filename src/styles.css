@@ -36,15 +36,18 @@
   --char-fg:  #e8a055;
 }
 
-html, body { height: 100%; }
+html {
+  height: 100%;
+}
 
+/* Grid로 전체 높이 명시 → 자식 패널이 자신의 높이를 정확히 앎 */
 body {
-  background: var(--bg);
-  color: var(--text);
   height: 100vh;
   overflow: hidden;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-rows: 48px 1fr;   /* header | content */
+  background: var(--bg);
+  color: var(--text);
   font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
   font-size: 13px;
   line-height: 1.5;
@@ -148,26 +151,25 @@ body {
 /* ══════════════════════════════════════════
    LAYOUT
 ══════════════════════════════════════════ */
+
+/* 3열 Grid — 각 cell의 높이가 grid row(1fr)로 명시되므로
+   자식의 overflow-y: auto 가 확실하게 동작 */
 .layout {
-  display: flex;
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
+  display: grid;
+  grid-template-columns: 260px 360px 1fr;
+  overflow: hidden;       /* 전체 레이아웃이 뷰포트를 넘지 않게 */
 }
 
 /* ══════════════════════════════════════════
    SIDEBAR
 ══════════════════════════════════════════ */
 .sidebar {
-  width: 260px;
-  min-width: 180px;
   background: var(--surface);
   border-right: 1px solid var(--border);
-  display: flex;
-  flex-direction: column;
-  flex-shrink: 0;
-  min-height: 0;
+  display: grid;
+  grid-template-rows: auto auto 1fr;   /* tabs | search | list */
   overflow: hidden;
+  min-width: 0;
 }
 
 .sidebar-tabs {
@@ -215,10 +217,8 @@ body {
 .sidebar-search input::placeholder { color: var(--text3); }
 
 .sidebar-list {
-  flex: 1;
-  overflow-y: auto;
+  overflow-y: auto;   /* grid row가 1fr이라 높이가 명확 → 스크롤 확실히 동작 */
   padding: 6px 0;
-  min-height: 0;
 }
 
 /* Tree items */
@@ -308,26 +308,13 @@ body {
 }
 
 /* ══════════════════════════════════════════
-   MAIN
-══════════════════════════════════════════ */
-.main {
-  flex: 1;
-  display: flex;
-  min-height: 0;
-  overflow: hidden;
-}
-
-/* ══════════════════════════════════════════
-   DETAIL PANEL
+   DETAIL PANEL  (grid cell — 높이 자동 확정)
 ══════════════════════════════════════════ */
 .detail-panel {
-  width: 360px;
-  min-width: 260px;
   background: var(--surface);
   border-right: 1px solid var(--border);
-  overflow-y: auto;
-  flex-shrink: 0;
-  min-height: 0;
+  overflow-y: auto;   /* grid cell 높이 = 뷰포트 → 스크롤 확실히 동작 */
+  min-width: 0;
 }
 
 .detail-placeholder {
@@ -457,14 +444,13 @@ body {
 .prop-card-meta { display: flex; flex-wrap: wrap; gap: 4px; }
 
 /* ══════════════════════════════════════════
-   GRAPH
+   GRAPH  (grid cell)
 ══════════════════════════════════════════ */
 .graph-area {
-  flex: 1;
   position: relative;
   background: var(--bg);
-  min-height: 0;
   overflow: hidden;
+  min-width: 0;
 }
 
 .cy-container {

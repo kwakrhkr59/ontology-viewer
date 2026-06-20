@@ -51,6 +51,8 @@ export default function App() {
         onFileLoad={handleFileLoad}
       />
 
+      {/* 3열 CSS Grid: Sidebar | DetailPanel | GraphView
+          각 cell 높이 = 뷰포트 - header(48px) → overflow-y: auto 확실히 동작 */}
       <div className="layout">
         <Sidebar
           ontology={ontology}
@@ -58,23 +60,19 @@ export default function App() {
           onSelectClass={handleSelectClass}
           onSelectProperty={handleSelectProperty}
         />
-
-        <div className="main">
-          <DetailPanel
-            ontology={ontology}
-            selectedItem={selectedItem}
-            onSelectClass={handleSelectClass}
-            onSelectProperty={handleSelectProperty}
-            showToast={showToast}
-          />
-
-          <GraphView
-            ontology={ontology}
-            selectedItem={selectedItem}
-            onSelectClass={handleSelectClass}
-            showToast={showToast}
-          />
-        </div>
+        <DetailPanel
+          ontology={ontology}
+          selectedItem={selectedItem}
+          onSelectClass={handleSelectClass}
+          onSelectProperty={handleSelectProperty}
+          showToast={showToast}
+        />
+        <GraphView
+          ontology={ontology}
+          selectedItem={selectedItem}
+          onSelectClass={handleSelectClass}
+          showToast={showToast}
+        />
       </div>
 
       {parseError && (
