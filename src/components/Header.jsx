@@ -24,7 +24,7 @@ export default function Header({ ontology, fileName, onFileLoad }) {
   return (
     <header className="header">
       <div className="header-logo">
-        <span className="header-logo-dot" />
+        <span className="header-logo-icon">🔬</span>
         Ontology Viewer
       </div>
 

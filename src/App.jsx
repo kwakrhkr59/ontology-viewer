@@ -77,10 +77,12 @@ export default function App() {
 
       {parseError && (
         <div style={{
-          position: 'fixed', bottom: 20, left: '50%', transform: 'translateX(-50%)',
-          background: '#3a1020', border: '1px solid #8b2040', color: '#ff8fa8',
-          padding: '10px 20px', borderRadius: 8, fontSize: 13, zIndex: 9999,
+          position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)',
+          background: '#FEF2F2', border: '1px solid #FCA5A5', color: '#DC2626',
+          padding: '10px 20px', borderRadius: 12, fontSize: 13, zIndex: 9999,
           maxWidth: '80vw', wordBreak: 'break-all',
+          boxShadow: '0 4px 20px rgba(220, 38, 38, 0.15)',
+          fontWeight: 500,
         }}>
           ⚠️ {parseError}
         </div>

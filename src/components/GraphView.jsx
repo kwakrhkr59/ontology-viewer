@@ -8,46 +8,47 @@ const CY_STYLE = [
   {
     selector: 'node',
     style: {
-      'background-color': '#1f2a3a',
-      'border-width': 1.5,
-      'border-color': '#43d188',
+      'background-color': '#FFFFFF',
+      'border-width': 2,
+      'border-color': '#10B981',
       'label': 'data(label)',
-      'color': '#9db8d2',
+      'color': '#566080',
       'text-valign': 'bottom',
-      'text-margin-y': 7,
+      'text-margin-y': 8,
       'font-size': 10,
       'font-family': 'Segoe UI, system-ui, sans-serif',
-      'width': 30,
-      'height': 30,
+      'width': 34,
+      'height': 34,
       'text-wrap': 'wrap',
-      'text-max-width': 80,
+      'text-max-width': 85,
     },
   },
   {
     selector: 'node.focus',
     style: {
-      'background-color': '#1e2a50',
-      'border-color': '#7b8ef5',
-      'border-width': 2,
-      'color': '#c8d4ff',
-      'width': 38,
-      'height': 38,
+      'background-color': '#EEF0FE',
+      'border-color': '#6366F1',
+      'border-width': 3,
+      'color': '#19213A',
+      'font-weight': 'bold',
+      'width': 44,
+      'height': 44,
     },
   },
   {
     selector: 'edge',
     style: {
-      'width': 1.5,
-      'line-color': '#e87c42',
-      'target-arrow-color': '#e87c42',
+      'width': 2,
+      'line-color': '#F59E0B',
+      'target-arrow-color': '#F59E0B',
       'target-arrow-shape': 'triangle',
       'target-arrow-size': 8,
       'curve-style': 'bezier',
       'label': 'data(label)',
       'font-size': 9,
       'font-family': 'Segoe UI, system-ui, sans-serif',
-      'color': '#b06030',
-      'text-background-color': '#0d1017',
+      'color': '#B45309',
+      'text-background-color': '#EDF1FA',
       'text-background-opacity': 0.9,
       'text-background-padding': '3px',
       'text-rotation': 'autorotate',
@@ -56,13 +57,13 @@ const CY_STYLE = [
   {
     selector: 'edge.subclass',
     style: {
-      'line-color': '#2a3050',
-      'target-arrow-color': '#2a3050',
+      'line-color': '#CDD4ED',
+      'target-arrow-color': '#CDD4ED',
       'target-arrow-size': 7,
       'line-style': 'dashed',
       'line-dash-pattern': [4, 3],
       'label': 'subClassOf',
-      'color': '#3a4060',
+      'color': '#99A3BE',
       'font-size': 9,
     },
   },
@@ -323,10 +324,10 @@ export default function GraphView({ ontology, selectedItem, onSelectClass, showT
       </div>
 
       <div className="graph-legend">
-        <div className="legend-item"><div className="legend-dot" style={{ background: '#6c8ef5' }} />선택 클래스</div>
-        <div className="legend-item"><div className="legend-dot" style={{ background: '#3dd68c' }} />연결 클래스</div>
-        <div className="legend-item"><div className="legend-line" style={{ background: '#f0883e' }} />Object Property</div>
-        <div className="legend-item"><div className="legend-dashed" style={{ borderColor: '#4a4f6a' }} />SubClassOf</div>
+        <div className="legend-item"><div className="legend-dot" style={{ background: '#6366F1', border: '2px solid #6366F1' }} />선택 클래스</div>
+        <div className="legend-item"><div className="legend-dot" style={{ background: '#fff', border: '2px solid #10B981' }} />연결 클래스</div>
+        <div className="legend-item"><div className="legend-line" style={{ background: '#F59E0B' }} />Object Property</div>
+        <div className="legend-item"><div className="legend-dashed" style={{ borderColor: '#CDD4ED' }} />SubClassOf</div>
       </div>
     </div>
   )
