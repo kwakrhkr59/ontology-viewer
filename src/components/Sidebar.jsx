@@ -58,7 +58,7 @@ function ClassTreeNode({ cls, classes, depth, selectedUri, onSelect, expanded, o
   )
 }
 
-export default function Sidebar({ ontology, selectedItem, onSelectClass, onSelectProperty, sidebarOpen, onToggleSidebar }) {
+export default function Sidebar({ ontology, selectedItem, onSelectClass, onSelectProperty }) {
   const [activeTab, setActiveTab] = useState('classes')
   const [query, setQuery]         = useState('')
   const [expanded, setExpanded]   = useState(new Set())
@@ -103,7 +103,7 @@ export default function Sidebar({ ontology, selectedItem, onSelectClass, onSelec
   return (
     <div className="sidebar">
       <div className="sidebar-tabs">
-        {sidebarOpen && TABS.map(tab => (
+        {TABS.map(tab => (
           <div
             key={tab.id}
             className={`sidebar-tab${activeTab === tab.id ? ' active' : ''}`}
@@ -112,97 +112,86 @@ export default function Sidebar({ ontology, selectedItem, onSelectClass, onSelec
             {tab.label}
           </div>
         ))}
-        <button
-          className="sidebar-toggle-btn"
-          onClick={onToggleSidebar}
-          title={sidebarOpen ? '사이드바 접기' : '사이드바 펼치기'}
-        >
-          {sidebarOpen ? '‹' : '›'}
-        </button>
       </div>
 
-      {sidebarOpen && (
-        <>
-          <div className="sidebar-search">
-            <input value={query} onChange={e => setQuery(e.target.value)} placeholder="검색..." />
-          </div>
+      <div className="sidebar-search">
+        <input value={query} onChange={e => setQuery(e.target.value)} placeholder="검색..." />
+      </div>
 
-          <div className="sidebar-list">
-            {!ontology && (
-              <div className="sidebar-empty">TTL 파일을 업로드하면<br />목록이 표시됩니다</div>
-            )}
+      <div className="sidebar-list">
+        {!ontology && (
+          <div className="sidebar-empty">TTL 파일을 업로드하면<br />목록이 표시됩니다</div>
+        )}
 
-            {ontology && activeTab === 'classes' && (
-              q
-                ? flatFiltered.length === 0
-                  ? <div className="sidebar-empty">검색 결과 없음</div>
-                  : flatFiltered.map(cls => (
-                      <div
-                        key={cls.uri}
-                        className={`list-item${selectedUri === cls.uri ? ' selected' : ''}`}
-                        style={{ paddingLeft: 6 }}
-                        onClick={() => onSelectClass(cls.uri)}
-                        title={cls.uri}
-                      >
-                        <span className="tree-toggle-placeholder" />
-                        <span className="tree-class-dot" />
-                        <span className="list-item-label">{getDisplayName(cls)}</span>
-                      </div>
-                    ))
-                : rootClasses.length === 0
-                  ? <div className="sidebar-empty">클래스 없음</div>
-                  : rootClasses.map(cls => (
-                      <ClassTreeNode
-                        key={cls.uri}
-                        cls={cls}
-                        classes={ontology.classes}
-                        depth={0}
-                        selectedUri={selectedUri}
-                        onSelect={onSelectClass}
-                        expanded={expanded}
-                        onToggle={onToggle}
-                      />
-                    ))
-            )}
+        {ontology && activeTab === 'classes' && (
+          q
+            ? flatFiltered.length === 0
+              ? <div className="sidebar-empty">검색 결과 없음</div>
+              : flatFiltered.map(cls => (
+                  <div
+                    key={cls.uri}
+                    className={`list-item${selectedUri === cls.uri ? ' selected' : ''}`}
+                    style={{ paddingLeft: 6 }}
+                    onClick={() => onSelectClass(cls.uri)}
+                    title={cls.uri}
+                  >
+                    <span className="tree-toggle-placeholder" />
+                    <span className="tree-class-dot" />
+                    <span className="list-item-label">{getDisplayName(cls)}</span>
+                  </div>
+                ))
+            : rootClasses.length === 0
+              ? <div className="sidebar-empty">클래스 없음</div>
+              : rootClasses.map(cls => (
+                  <ClassTreeNode
+                    key={cls.uri}
+                    cls={cls}
+                    classes={ontology.classes}
+                    depth={0}
+                    selectedUri={selectedUri}
+                    onSelect={onSelectClass}
+                    expanded={expanded}
+                    onToggle={onToggle}
+                  />
+                ))
+        )}
 
-            {ontology && activeTab === 'objProps' && (
-              filteredProps.length === 0
-                ? <div className="sidebar-empty">검색 결과 없음</div>
-                : filteredProps.map(prop => (
-                    <div
-                      key={prop.uri}
-                      className={`list-item${selectedType === 'objectProperty' && selectedUri === prop.uri ? ' selected' : ''}`}
-                      style={{ paddingLeft: 8 }}
-                      onClick={() => onSelectProperty(prop.uri, 'objectProperty')}
-                      title={prop.uri}
-                    >
-                      <span className="list-item-prop-icon" style={{ color: 'var(--obj-fg)' }}>→</span>
-                      <span className="list-item-label">{getDisplayName(prop)}</span>
-                    </div>
-                  ))
-            )}
+        {ontology && activeTab === 'objProps' && (
+          filteredProps.length === 0
+            ? <div className="sidebar-empty">검색 결과 없음</div>
+            : filteredProps.map(prop => (
+                <div
+                  key={prop.uri}
+                  className={`list-item${selectedType === 'objectProperty' && selectedUri === prop.uri ? ' selected' : ''}`}
+                  style={{ paddingLeft: 8 }}
+                  onClick={() => onSelectProperty(prop.uri, 'objectProperty')}
+                  title={prop.uri}
+                >
+                  <span className="list-item-prop-icon" style={{ color: 'var(--obj-fg)' }}>→</span>
+                  <span className="list-item-label">{getDisplayName(prop)}</span>
+                </div>
+              ))
+        )}
 
-            {ontology && activeTab === 'dataProps' && (
-              filteredProps.length === 0
-                ? <div className="sidebar-empty">검색 결과 없음</div>
-                : filteredProps.map(prop => (
-                    <div
-                      key={prop.uri}
-                      className={`list-item${selectedType === 'dataProperty' && selectedUri === prop.uri ? ' selected' : ''}`}
-                      style={{ paddingLeft: 8 }}
-                      onClick={() => onSelectProperty(prop.uri, 'dataProperty')}
-                      title={prop.uri}
-                    >
-                      <span className="list-item-prop-icon" style={{ color: 'var(--data-fg)' }}>#</span>
-                      <span className="list-item-label">{getDisplayName(prop)}</span>
-                    </div>
-                  ))
-            )}
+        {ontology && activeTab === 'dataProps' && (
+          filteredProps.length === 0
+            ? <div className="sidebar-empty">검색 결과 없음</div>
+            : filteredProps.map(prop => (
+                <div
+                  key={prop.uri}
+                  className={`list-item${selectedType === 'dataProperty' && selectedUri === prop.uri ? ' selected' : ''}`}
+                  style={{ paddingLeft: 8 }}
+                  onClick={() => onSelectProperty(prop.uri, 'dataProperty')}
+                  title={prop.uri}
+                >
+                  <span className="list-item-prop-icon" style={{ color: 'var(--data-fg)' }}>#</span>
+                  <span className="list-item-label">{getDisplayName(prop)}</span>
+                </div>
+              ))
+        )}
 
-            <div style={{ height: 8 }} />
-          </div>
-        </>
-      )}
+        <div style={{ height: 8 }} />
+      </div>
     </div>
   )
 }

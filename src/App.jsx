@@ -12,6 +12,7 @@ export default function App() {
   const [parseError, setParseError]     = useState(null)
   const [toast, setToast]               = useState({ msg: '', visible: false })
   const [sidebarOpen, setSidebarOpen]   = useState(true)
+  const [detailOpen, setDetailOpen]     = useState(true)
   const toastTimer = useRef(null)
 
   const showToast = useCallback((msg) => {
@@ -44,6 +45,12 @@ export default function App() {
     setSelectedItem({ type, uri })
   }, [])
 
+  const layoutClass = [
+    'layout',
+    !sidebarOpen && 'sidebar-collapsed',
+    !detailOpen  && 'detail-collapsed',
+  ].filter(Boolean).join(' ')
+
   return (
     <>
       <Header
@@ -52,17 +59,24 @@ export default function App() {
         onFileLoad={handleFileLoad}
       />
 
-      {/* 3열 CSS Grid: Sidebar | DetailPanel | GraphView
-          각 cell 높이 = 뷰포트 - header(48px) → overflow-y: auto 확실히 동작 */}
-      <div className={`layout${sidebarOpen ? '' : ' sidebar-collapsed'}`}>
+      <div className={layoutClass}>
         <Sidebar
           ontology={ontology}
           selectedItem={selectedItem}
           onSelectClass={handleSelectClass}
           onSelectProperty={handleSelectProperty}
-          sidebarOpen={sidebarOpen}
-          onToggleSidebar={() => setSidebarOpen(v => !v)}
         />
+
+        <div className="panel-sep">
+          <button
+            className="panel-toggle-btn"
+            onClick={() => setSidebarOpen(v => !v)}
+            title={sidebarOpen ? '목록 패널 접기' : '목록 패널 펼치기'}
+          >
+            {sidebarOpen ? '‹' : '›'}
+          </button>
+        </div>
+
         <DetailPanel
           ontology={ontology}
           selectedItem={selectedItem}
@@ -70,6 +84,17 @@ export default function App() {
           onSelectProperty={handleSelectProperty}
           showToast={showToast}
         />
+
+        <div className="panel-sep">
+          <button
+            className="panel-toggle-btn"
+            onClick={() => setDetailOpen(v => !v)}
+            title={detailOpen ? '상세 패널 접기' : '상세 패널 펼치기'}
+          >
+            {detailOpen ? '‹' : '›'}
+          </button>
+        </div>
+
         <GraphView
           ontology={ontology}
           selectedItem={selectedItem}

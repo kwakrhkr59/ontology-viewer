@@ -174,13 +174,47 @@ body {
 ══════════════════════════════════════════ */
 .layout {
   display: grid;
-  grid-template-columns: 280px 380px 1fr;
+  grid-template-columns: 280px 1px 380px 1px 1fr;
   overflow: hidden;
   min-height: 0;
-  transition: grid-template-columns 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: grid-template-columns 0.26s cubic-bezier(0.4, 0, 0.2, 1);
 }
-.layout.sidebar-collapsed {
-  grid-template-columns: 42px 380px 1fr;
+.layout.sidebar-collapsed              { grid-template-columns: 0px 1px 380px 1px 1fr; }
+.layout.detail-collapsed               { grid-template-columns: 280px 1px 0px 1px 1fr; }
+.layout.sidebar-collapsed.detail-collapsed { grid-template-columns: 0px 1px 0px 1px 1fr; }
+
+/* Panel separator + toggle handle */
+.panel-sep {
+  background: var(--border);
+  position: relative;
+  z-index: 20;
+}
+.panel-toggle-btn {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 16px;
+  height: 44px;
+  background: var(--surface);
+  border: 1.5px solid var(--border2);
+  border-radius: 8px;
+  color: var(--text3);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: background 0.15s, color 0.15s, border-color 0.15s, box-shadow 0.15s;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+.panel-toggle-btn:hover {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+  box-shadow: 0 3px 12px rgba(99, 102, 241, 0.3);
 }
 
 /* ══════════════════════════════════════════
@@ -188,7 +222,6 @@ body {
 ══════════════════════════════════════════ */
 .sidebar {
   background: var(--surface);
-  border-right: 1px solid var(--border);
   display: grid;
   grid-template-rows: auto auto 1fr;
   overflow: hidden;
@@ -197,43 +230,10 @@ body {
 
 .sidebar-tabs {
   display: flex;
-  align-items: center;
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
   padding: 12px 12px 0;
   gap: 4px;
-}
-.layout.sidebar-collapsed .sidebar-tabs {
-  justify-content: center;
-  padding: 10px 4px;
-  border-bottom: none;
-}
-
-.sidebar-toggle-btn {
-  margin-left: auto;
-  margin-bottom: 4px;
-  flex-shrink: 0;
-  width: 26px;
-  height: 26px;
-  background: none;
-  border: 1.5px solid var(--border2);
-  border-radius: 7px;
-  color: var(--text3);
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 0.15s, color 0.15s, border-color 0.15s;
-}
-.sidebar-toggle-btn:hover {
-  background: rgba(99, 102, 241, 0.08);
-  color: var(--accent);
-  border-color: var(--accent);
-}
-.layout.sidebar-collapsed .sidebar-toggle-btn {
-  margin: 0;
 }
 .sidebar-tab {
   flex: 1;
@@ -385,7 +385,6 @@ body {
 ══════════════════════════════════════════ */
 .detail-panel {
   background: var(--surface2);
-  border-right: 1px solid var(--border);
   overflow-y: auto;
   min-width: 0;
 }
