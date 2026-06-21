@@ -67,7 +67,7 @@ export default function App() {
           onSelectProperty={handleSelectProperty}
         />
 
-        <div className="panel-sep">
+        <div className="panel-sep panel-sep--sidebar">
           <button
             className="panel-toggle-btn"
             onClick={() => setSidebarOpen(v => !v)}
@@ -85,7 +85,7 @@ export default function App() {
           showToast={showToast}
         />
 
-        <div className="panel-sep">
+        <div className="panel-sep panel-sep--detail">
           <button
             className="panel-toggle-btn"
             onClick={() => setDetailOpen(v => !v)}
