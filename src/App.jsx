@@ -1,16 +1,16 @@
-import { useState, useCallback, useRef } from 'react'
-import { parseTTLText } from './utils/ttlParser'
+import { useState, useCallback, useRef } from 'react'import { parseTTLText } from './utils/ttlParser'
 import Header from './components/Header'
 import Sidebar from './components/Sidebar'
 import DetailPanel from './components/DetailPanel'
 import GraphView from './components/GraphView'
 
 export default function App() {
-  const [ontology, setOntology]       = useState(null)
-  const [fileName, setFileName]       = useState(null)
+  const [ontology, setOntology]         = useState(null)
+  const [fileName, setFileName]         = useState(null)
   const [selectedItem, setSelectedItem] = useState(null)
-  const [parseError, setParseError]   = useState(null)
-  const [toast, setToast]             = useState({ msg: '', visible: false })
+  const [parseError, setParseError]     = useState(null)
+  const [toast, setToast]               = useState({ msg: '', visible: false })
+  const [sidebarOpen, setSidebarOpen]   = useState(true)
   const toastTimer = useRef(null)
 
   const showToast = useCallback((msg) => {
@@ -53,12 +53,14 @@ export default function App() {
 
       {/* 3열 CSS Grid: Sidebar | DetailPanel | GraphView
           각 cell 높이 = 뷰포트 - header(48px) → overflow-y: auto 확실히 동작 */}
-      <div className="layout">
+      <div className={`layout${sidebarOpen ? '' : ' sidebar-collapsed'}`}>
         <Sidebar
           ontology={ontology}
           selectedItem={selectedItem}
           onSelectClass={handleSelectClass}
           onSelectProperty={handleSelectProperty}
+          sidebarOpen={sidebarOpen}
+          onToggleSidebar={() => setSidebarOpen(v => !v)}
         />
         <DetailPanel
           ontology={ontology}
