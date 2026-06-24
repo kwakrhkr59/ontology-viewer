@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import { getDisplayName } from '../utils/ttlParser'
 
 const XSD_TYPES = [
@@ -21,8 +21,20 @@ const CHARACTERISTICS = [
 
 const STD_PREFIXES = new Set(['rdf', 'rdfs', 'owl', 'xsd'])
 
-// Searchable multi-select with chips
+// Calculate fixed position for dropdown to escape overflow:auto clipping
+function useFixedDropdown(containerRef) {
+  const [pos, setPos] = useState({ top: 0, left: 0, width: 0 })
+  const update = useCallback(() => {
+    if (!containerRef.current) return
+    const r = containerRef.current.getBoundingClientRect()
+    setPos({ top: r.bottom + 4, left: r.left, width: r.width })
+  }, [containerRef])
+  return { pos, update }
+}
+
 function ChipSelect({ items, value, onChange, placeholder }) {
+  const containerRef = useRef(null)
+  const { pos, update } = useFixedDropdown(containerRef)
   const [search, setSearch] = useState('')
   const [open, setOpen] = useState(false)
 
@@ -31,9 +43,11 @@ function ChipSelect({ items, value, onChange, placeholder }) {
     item.label.toLowerCase().includes(search.toLowerCase())
   ).slice(0, 12)
 
+  const openDrop = () => { update(); setOpen(true) }
+
   return (
-    <div className="chip-select">
-      <div className="chip-select-input" onClick={() => setOpen(true)}>
+    <div className="chip-select" ref={containerRef}>
+      <div className="chip-select-input" onClick={openDrop}>
         {value.map(uri => {
           const item = items.find(i => i.uri === uri)
           return (
@@ -49,15 +63,18 @@ function ChipSelect({ items, value, onChange, placeholder }) {
         })}
         <input
           value={search}
-          onChange={e => { setSearch(e.target.value); setOpen(true) }}
-          onFocus={() => setOpen(true)}
+          onChange={e => { setSearch(e.target.value); openDrop() }}
+          onFocus={openDrop}
           onBlur={() => setTimeout(() => setOpen(false), 150)}
           placeholder={value.length === 0 ? placeholder : ''}
           className="chip-select-text"
         />
       </div>
       {open && filtered.length > 0 && (
-        <div className="chip-select-dropdown">
+        <div
+          className="chip-select-dropdown"
+          style={{ position: 'fixed', top: pos.top, left: pos.left, width: pos.width, zIndex: 2000 }}
+        >
           {filtered.map(item => (
             <div
               key={item.uri}
@@ -74,8 +91,9 @@ function ChipSelect({ items, value, onChange, placeholder }) {
   )
 }
 
-// Single-select with chip display
 function SingleSelect({ items, value, onChange, placeholder }) {
+  const containerRef = useRef(null)
+  const { pos, update } = useFixedDropdown(containerRef)
   const selected = items.find(i => i.uri === value)
   const [search, setSearch] = useState('')
   const [open, setOpen] = useState(false)
@@ -84,9 +102,11 @@ function SingleSelect({ items, value, onChange, placeholder }) {
     item.label.toLowerCase().includes(search.toLowerCase())
   ).slice(0, 12)
 
+  const openDrop = () => { update(); setOpen(true) }
+
   return (
-    <div className="chip-select">
-      <div className="chip-select-input" onClick={() => !selected && setOpen(true)}>
+    <div className="chip-select" ref={containerRef}>
+      <div className="chip-select-input" onClick={() => !selected && openDrop()}>
         {selected ? (
           <span className="chip chip-sel">
             {selected.label}
@@ -99,8 +119,8 @@ function SingleSelect({ items, value, onChange, placeholder }) {
         ) : (
           <input
             value={search}
-            onChange={e => { setSearch(e.target.value); setOpen(true) }}
-            onFocus={() => setOpen(true)}
+            onChange={e => { setSearch(e.target.value); openDrop() }}
+            onFocus={openDrop}
             onBlur={() => setTimeout(() => setOpen(false), 150)}
             placeholder={placeholder}
             className="chip-select-text"
@@ -108,7 +128,10 @@ function SingleSelect({ items, value, onChange, placeholder }) {
         )}
       </div>
       {open && !selected && filtered.length > 0 && (
-        <div className="chip-select-dropdown">
+        <div
+          className="chip-select-dropdown"
+          style={{ position: 'fixed', top: pos.top, left: pos.left, width: pos.width, zIndex: 2000 }}
+        >
           {filtered.map(item => (
             <div
               key={item.uri}
@@ -143,7 +166,6 @@ export default function EditModal({ type, ontology, lang, onSubmit, onClose }) {
   const [characteristics, setCharacteristics] = useState([])
   const [error, setError]           = useState('')
 
-  // Close on Escape
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose() }
     window.addEventListener('keydown', onKey)
@@ -174,11 +196,9 @@ export default function EditModal({ type, ontology, lang, onSubmit, onClose }) {
     e.preventDefault()
     if (!localName.trim()) { setError('Local name을 입력하세요.'); return }
     if (!ns)               { setError('Namespace가 없습니다. 접두사를 확인하세요.'); return }
-    if (
-      ontology.classes[generatedUri] ||
-      ontology.objectProperties[generatedUri] ||
-      ontology.dataProperties[generatedUri]
-    ) { setError('이미 존재하는 URI입니다.'); return }
+    if (ontology.classes[generatedUri] || ontology.objectProperties[generatedUri] || ontology.dataProperties[generatedUri]) {
+      setError('이미 존재하는 URI입니다.'); return
+    }
 
     const labels = []
     if (labelEn.trim()) labels.push({ value: labelEn.trim(), lang: 'en' })
@@ -197,11 +217,7 @@ export default function EditModal({ type, ontology, lang, onSubmit, onClose }) {
     }
   }
 
-  const TITLE = {
-    class: '새 클래스 추가',
-    objectProperty: '새 Object Property 추가',
-    dataProperty: '새 Data Property 추가',
-  }
+  const TITLE = { class: '새 클래스 추가', objectProperty: '새 Object Property 추가', dataProperty: '새 Data Property 추가' }
 
   return (
     <div className="modal-overlay" onMouseDown={onClose}>
@@ -213,7 +229,7 @@ export default function EditModal({ type, ontology, lang, onSubmit, onClose }) {
 
         <form className="modal-body" onSubmit={handleSubmit}>
 
-          {/* URI builder */}
+          {/* URI */}
           <div className="form-row">
             <label className="form-label">URI</label>
             <div className="uri-builder">
@@ -223,7 +239,7 @@ export default function EditModal({ type, ontology, lang, onSubmit, onClose }) {
                   value={prefix}
                   onChange={e => { setPrefix(e.target.value); setError('') }}
                 >
-                  {customPrefixes.map(([p, nsVal]) => (
+                  {customPrefixes.map(([p]) => (
                     <option key={p} value={p}>{p ? `${p}:` : ':'}</option>
                   ))}
                 </select>
@@ -245,11 +261,11 @@ export default function EditModal({ type, ontology, lang, onSubmit, onClose }) {
 
           {/* Labels */}
           <div className="form-row form-row--2col">
-            <div>
+            <div className="form-field">
               <label className="form-label">Label (EN)</label>
               <input value={labelEn} onChange={e => setLabelEn(e.target.value)} placeholder="English label" />
             </div>
-            <div>
+            <div className="form-field">
               <label className="form-label">Label (KO)</label>
               <input value={labelKo} onChange={e => setLabelKo(e.target.value)} placeholder="한국어 레이블" />
             </div>
@@ -257,11 +273,11 @@ export default function EditModal({ type, ontology, lang, onSubmit, onClose }) {
 
           {/* Comments */}
           <div className="form-row form-row--2col">
-            <div>
+            <div className="form-field">
               <label className="form-label">Comment (EN)</label>
               <textarea value={commentEn} onChange={e => setCommentEn(e.target.value)} placeholder="English comment" rows={2} />
             </div>
-            <div>
+            <div className="form-field">
               <label className="form-label">Comment (KO)</label>
               <textarea value={commentKo} onChange={e => setCommentKo(e.target.value)} placeholder="한국어 설명" rows={2} />
             </div>
@@ -275,15 +291,15 @@ export default function EditModal({ type, ontology, lang, onSubmit, onClose }) {
             </div>
           )}
 
-          {/* Object Property fields */}
+          {/* Object Property */}
           {type === 'objectProperty' && (
             <>
               <div className="form-row form-row--2col">
-                <div>
+                <div className="form-field">
                   <label className="form-label">Domain</label>
                   <ChipSelect items={classItems} value={domains} onChange={setDomains} placeholder="클래스 검색..." />
                 </div>
-                <div>
+                <div className="form-field">
                   <label className="form-label">Range</label>
                   <ChipSelect items={classItems} value={objRanges} onChange={setObjRanges} placeholder="클래스 검색..." />
                 </div>
@@ -306,14 +322,14 @@ export default function EditModal({ type, ontology, lang, onSubmit, onClose }) {
             </>
           )}
 
-          {/* Data Property fields */}
+          {/* Data Property */}
           {type === 'dataProperty' && (
             <div className="form-row form-row--2col">
-              <div>
+              <div className="form-field">
                 <label className="form-label">Domain</label>
                 <ChipSelect items={classItems} value={domains} onChange={setDomains} placeholder="클래스 검색..." />
               </div>
-              <div>
+              <div className="form-field">
                 <label className="form-label">Range (XSD)</label>
                 <ChipSelect items={XSD_TYPES} value={dataRanges} onChange={setDataRanges} placeholder="xsd:string, ..." />
               </div>
