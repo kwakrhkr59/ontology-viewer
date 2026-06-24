@@ -5,6 +5,8 @@ import Sidebar from './components/Sidebar'
 import DetailPanel from './components/DetailPanel'
 import GraphView from './components/GraphView'
 
+const ACCEPTED_EXTS = ['ttl', 'owl', 'n3']
+
 export default function App() {
   const [ontology, setOntology]         = useState(null)
   const [fileName, setFileName]         = useState(null)
@@ -13,7 +15,9 @@ export default function App() {
   const [toast, setToast]               = useState({ msg: '', visible: false })
   const [sidebarOpen, setSidebarOpen]   = useState(true)
   const [detailOpen, setDetailOpen]     = useState(true)
-  const toastTimer = useRef(null)
+  const [isDragging, setIsDragging]     = useState(false)
+  const toastTimer   = useRef(null)
+  const dragCounter  = useRef(0)
 
   const showToast = useCallback((msg) => {
     clearTimeout(toastTimer.current)
@@ -28,8 +32,7 @@ export default function App() {
       setFileName(name)
       setSelectedItem(null)
       setParseError(null)
-      const classCount = Object.keys(parsed.classes).length
-      showToast(`파싱 완료 — 클래스 ${classCount}개`)
+      showToast(`파싱 완료 — 클래스 ${Object.keys(parsed.classes).length}개`)
     } catch (err) {
       console.error('[OntologyViewer] parse error:', err)
       setParseError(err.message)
@@ -37,13 +40,43 @@ export default function App() {
     }
   }, [showToast])
 
-  const handleSelectClass = useCallback((uri) => {
-    setSelectedItem({ type: 'class', uri })
+  const loadFile = useCallback((file) => {
+    if (!file) return
+    const ext = file.name.split('.').pop().toLowerCase()
+    if (!ACCEPTED_EXTS.includes(ext)) {
+      showToast('TTL / OWL / N3 파일만 지원합니다')
+      return
+    }
+    const reader = new FileReader()
+    reader.onload = (ev) => handleFileLoad(file.name, ev.target.result)
+    reader.readAsText(file)
+  }, [handleFileLoad, showToast])
+
+  const handleDragEnter = useCallback((e) => {
+    e.preventDefault()
+    dragCounter.current++
+    if (dragCounter.current === 1) setIsDragging(true)
   }, [])
 
-  const handleSelectProperty = useCallback((uri, type) => {
-    setSelectedItem({ type, uri })
+  const handleDragLeave = useCallback((e) => {
+    e.preventDefault()
+    dragCounter.current--
+    if (dragCounter.current === 0) setIsDragging(false)
   }, [])
+
+  const handleDragOver = useCallback((e) => {
+    e.preventDefault()
+  }, [])
+
+  const handleDrop = useCallback((e) => {
+    e.preventDefault()
+    dragCounter.current = 0
+    setIsDragging(false)
+    loadFile(e.dataTransfer.files[0])
+  }, [loadFile])
+
+  const handleSelectClass    = useCallback((uri) => setSelectedItem({ type: 'class', uri }), [])
+  const handleSelectProperty = useCallback((uri, type) => setSelectedItem({ type, uri }), [])
 
   const layoutClass = [
     'layout',
@@ -52,7 +85,13 @@ export default function App() {
   ].filter(Boolean).join(' ')
 
   return (
-    <>
+    <div
+      className="app-root"
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+    >
       <Header
         ontology={ontology}
         fileName={fileName}
@@ -103,6 +142,20 @@ export default function App() {
         />
       </div>
 
+      {isDragging && (
+        <div className="drop-overlay">
+          <div className="drop-overlay-inner">
+            <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+              <path d="M24 8v24M14 22l10-14 10 14" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M8 36h32" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" opacity=".5"/>
+              <path d="M8 42h32" stroke="currentColor" strokeWidth="2" strokeLinecap="round" opacity=".25"/>
+            </svg>
+            <p>파일을 놓아주세요</p>
+            <span>.ttl · .owl · .n3</span>
+          </div>
+        </div>
+      )}
+
       {parseError && (
         <div style={{
           position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)',
@@ -117,6 +170,6 @@ export default function App() {
       )}
 
       <div className={`toast${toast.visible ? ' visible' : ''}`}>{toast.msg}</div>
-    </>
+    </div>
   )
 }
