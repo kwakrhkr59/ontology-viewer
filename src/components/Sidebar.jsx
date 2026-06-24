@@ -2,8 +2,8 @@ import { useState, useMemo } from 'react'
 import { getDisplayName } from '../utils/ttlParser'
 
 const TABS = [
-  { id: 'classes',   label: '클래스' },
-  { id: 'objProps',  label: 'Object Props' },
+  { id: 'classes',   label: 'Classes' },
+  { id: 'objProps',  label: 'Obj Props' },
   { id: 'dataProps', label: 'Data Props' },
 ]
 
@@ -115,12 +115,20 @@ export default function Sidebar({ ontology, selectedItem, onSelectClass, onSelec
       </div>
 
       <div className="sidebar-search">
-        <input value={query} onChange={e => setQuery(e.target.value)} placeholder="검색..." />
+        <input value={query} onChange={e => setQuery(e.target.value)} placeholder="이름 또는 URI 검색" />
       </div>
 
       <div className="sidebar-list">
         {!ontology && (
-          <div className="sidebar-empty">TTL 파일을 업로드하면<br />목록이 표시됩니다</div>
+          <div className="sidebar-empty">
+            <div className="sidebar-empty-icon">
+              <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+                <rect x="2" y="2" width="28" height="28" rx="6" stroke="currentColor" strokeWidth="1.5" strokeDasharray="4 3" opacity=".4"/>
+                <path d="M10 16h12M16 10v12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" opacity=".5"/>
+              </svg>
+            </div>
+            TTL 파일을 열면<br />목록이 표시됩니다
+          </div>
         )}
 
         {ontology && activeTab === 'classes' && (

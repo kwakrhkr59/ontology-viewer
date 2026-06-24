@@ -405,7 +405,17 @@ export default function GraphView({ ontology, selectedItem, onSelectClass, showT
 
       {!selectedItem && (
         <div className="graph-placeholder">
-          <div className="graph-placeholder-icon">🕸️</div>
+          <div className="graph-placeholder-icon">
+            <svg width="52" height="52" viewBox="0 0 52 52" fill="none">
+              <circle cx="26" cy="10" r="5"  stroke="currentColor" strokeWidth="1.5" opacity=".3"/>
+              <circle cx="9"  cy="38" r="5"  stroke="currentColor" strokeWidth="1.5" opacity=".3"/>
+              <circle cx="43" cy="38" r="5"  stroke="currentColor" strokeWidth="1.5" opacity=".3"/>
+              <circle cx="26" cy="26" r="3.5" stroke="currentColor" strokeWidth="1.5" opacity=".18"/>
+              <line x1="26" y1="15" x2="26"  y2="22.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" opacity=".25"/>
+              <line x1="23"  y1="29" x2="13"  y2="34"  stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" opacity=".25"/>
+              <line x1="29"  y1="29" x2="39"  y2="34"  stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" opacity=".25"/>
+            </svg>
+          </div>
           <p>클래스를 선택하면 관계 그래프가 표시됩니다</p>
         </div>
       )}

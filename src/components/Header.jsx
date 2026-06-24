@@ -1,5 +1,19 @@
 import { useRef } from 'react'
 
+function GraphIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <circle cx="10" cy="4"   r="2.5" fill="white" />
+      <circle cx="3.5" cy="16" r="2.5" fill="white" opacity="0.8" />
+      <circle cx="16.5" cy="16" r="2.5" fill="white" opacity="0.8" />
+      <circle cx="10"  cy="11" r="2"   fill="white" opacity="0.55" />
+      <line x1="10" y1="6.5"  x2="10"  y2="9"    stroke="white" strokeWidth="1.5" strokeLinecap="round" />
+      <line x1="8.5" y1="12.5" x2="5.5" y2="14.2" stroke="white" strokeWidth="1.5" strokeLinecap="round" />
+      <line x1="11.5" y1="12.5" x2="14.5" y2="14.2" stroke="white" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  )
+}
+
 export default function Header({ ontology, fileName, onFileLoad }) {
   const inputRef = useRef(null)
 
@@ -14,18 +28,20 @@ export default function Header({ ontology, fileName, onFileLoad }) {
 
   const stats = ontology
     ? [
-        { num: Object.keys(ontology.classes).length,             lbl: 'Classes' },
-        { num: Object.keys(ontology.objectProperties).length,    lbl: 'Obj' },
-        { num: Object.keys(ontology.dataProperties).length,      lbl: 'Data' },
-        { num: Object.keys(ontology.annotationProperties).length,lbl: 'Ann' },
+        { num: Object.keys(ontology.classes).length,              lbl: 'Classes' },
+        { num: Object.keys(ontology.objectProperties).length,     lbl: 'Obj Props' },
+        { num: Object.keys(ontology.dataProperties).length,       lbl: 'Data Props' },
+        { num: Object.keys(ontology.annotationProperties).length, lbl: 'Ann Props' },
       ]
     : null
 
   return (
     <header className="header">
       <div className="header-logo">
-        <span className="header-logo-icon">🔬</span>
-        Ontology Viewer
+        <span className="header-logo-icon"><GraphIcon /></span>
+        <span className="header-logo-text">
+          Ontology<strong>Viewer</strong>
+        </span>
       </div>
 
       <div className="header-divider" />
@@ -48,7 +64,7 @@ export default function Header({ ontology, fileName, onFileLoad }) {
           {stats.map(({ num, lbl }) => (
             <div key={lbl} className="stat-pill">
               <span className="stat-pill-num">{num}</span>
-              <span>{lbl}</span>
+              <span className="stat-pill-lbl">{lbl}</span>
             </div>
           ))}
         </div>

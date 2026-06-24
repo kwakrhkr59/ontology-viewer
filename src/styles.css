@@ -79,14 +79,11 @@ body {
 }
 
 .header-logo {
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--text);
-  letter-spacing: -0.4px;
   white-space: nowrap;
   display: flex;
   align-items: center;
   gap: 10px;
+  text-decoration: none;
 }
 
 .header-logo-icon {
@@ -98,8 +95,18 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 15px;
   box-shadow: 0 3px 10px rgba(99, 102, 241, 0.35);
+}
+
+.header-logo-text {
+  font-size: 15px;
+  font-weight: 400;
+  color: var(--text2);
+  letter-spacing: -0.3px;
+}
+.header-logo-text strong {
+  font-weight: 700;
+  color: var(--text);
 }
 
 .header-divider {
@@ -168,19 +175,22 @@ body {
   color: var(--accent);
   font-size: 13px;
 }
+.stat-pill-lbl {
+  color: var(--text3);
+}
 
 /* ══════════════════════════════════════════
    LAYOUT
 ══════════════════════════════════════════ */
 .layout {
   display: grid;
-  grid-template-columns: 280px 1px 380px 1px 1fr;
+  grid-template-columns: 260px 1px 340px 1px 1fr;
   overflow: hidden;
   min-height: 0;
   transition: grid-template-columns 0.26s cubic-bezier(0.4, 0, 0.2, 1);
 }
-.layout.sidebar-collapsed              { grid-template-columns: 0px 1px 380px 1px 1fr; }
-.layout.detail-collapsed               { grid-template-columns: 280px 1px 0px 1px 1fr; }
+.layout.sidebar-collapsed              { grid-template-columns: 0px 1px 340px 1px 1fr; }
+.layout.detail-collapsed               { grid-template-columns: 260px 1px 0px 1px 1fr; }
 .layout.sidebar-collapsed.detail-collapsed { grid-template-columns: 0px 1px 0px 1px 1fr; }
 
 /* Panel separator + toggle handle */
@@ -389,7 +399,12 @@ body {
   font-size: 12px;
   text-align: center;
   line-height: 1.9;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
 }
+.sidebar-empty-icon { display: flex; color: var(--text3); }
 
 /* ══════════════════════════════════════════
    DETAIL PANEL
@@ -411,7 +426,7 @@ body {
   padding: 24px;
   text-align: center;
 }
-.detail-placeholder-icon { font-size: 44px; opacity: 0.5; }
+.detail-placeholder-icon { display: flex; color: var(--text3); }
 .detail-placeholder p { font-size: 13px; line-height: 1.8; color: var(--text3); }
 
 .detail-content {
@@ -596,7 +611,7 @@ body {
   pointer-events: none;
   z-index: 1;
 }
-.graph-placeholder-icon { font-size: 44px; opacity: 0.35; }
+.graph-placeholder-icon { display: flex; color: var(--text3); }
 .graph-placeholder p { font-size: 13px; font-weight: 500; }
 
 .graph-controls {

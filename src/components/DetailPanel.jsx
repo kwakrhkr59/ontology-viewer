@@ -97,7 +97,17 @@ export default function DetailPanel({ ontology, selectedItem, onSelectClass, onS
     return (
       <div className="detail-panel">
         <div className="detail-placeholder">
-          <div className="detail-placeholder-icon">👆</div>
+          <div className="detail-placeholder-icon">
+            <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+              <circle cx="20" cy="10" r="4" stroke="currentColor" strokeWidth="1.5" opacity=".4"/>
+              <circle cx="8"  cy="30" r="4" stroke="currentColor" strokeWidth="1.5" opacity=".4"/>
+              <circle cx="32" cy="30" r="4" stroke="currentColor" strokeWidth="1.5" opacity=".4"/>
+              <circle cx="20" cy="21" r="3" stroke="currentColor" strokeWidth="1.5" opacity=".25"/>
+              <line x1="20" y1="14" x2="20" y2="18" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" opacity=".3"/>
+              <line x1="17.5" y1="23.5" x2="11" y2="27" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" opacity=".3"/>
+              <line x1="22.5" y1="23.5" x2="29" y2="27" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" opacity=".3"/>
+            </svg>
+          </div>
           <p>좌측에서 클래스나<br />속성을 선택하세요</p>
         </div>
       </div>
