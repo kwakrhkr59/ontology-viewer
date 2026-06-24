@@ -14,7 +14,12 @@ function GraphIcon() {
   )
 }
 
-export default function Header({ ontology, fileName, onFileLoad, lang, onLangChange, onExport }) {
+const KNOWN_LANGS = [
+  { code: 'en', label: 'EN' },
+  { code: 'ko', label: 'KO' },
+]
+
+export default function Header({ ontology, fileName, onFileLoad, lang, onLangChange, availableLangs, onExport }) {
   const inputRef = useRef(null)
 
   const handleFile = (e) => {
@@ -59,20 +64,19 @@ export default function Header({ ontology, fileName, onFileLoad, lang, onLangCha
 
       {fileName && <span className="file-name">{fileName}</span>}
 
-      <div className="lang-toggle" title="언어 전환 (EN / KO)">
-        <button
-          className={`lang-btn${lang === 'en' ? ' lang-btn--active' : ''}`}
-          onClick={() => onLangChange('en')}
-        >
-          EN
-        </button>
-        <button
-          className={`lang-btn${lang === 'ko' ? ' lang-btn--active' : ''}`}
-          onClick={() => onLangChange('ko')}
-        >
-          KO
-        </button>
-      </div>
+      {availableLangs && availableLangs.size > 1 && (
+        <div className="lang-toggle" title="언어 전환">
+          {KNOWN_LANGS.filter(l => availableLangs.has(l.code)).map(l => (
+            <button
+              key={l.code}
+              className={`lang-btn${lang === l.code ? ' lang-btn--active' : ''}`}
+              onClick={() => onLangChange(l.code)}
+            >
+              {l.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {ontology && (
         <button className="export-btn" onClick={onExport} title="편집된 온톨로지를 TTL로 내보내기">

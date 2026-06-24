@@ -193,6 +193,20 @@ export function getDisplayName(item, lang = '') {
   return noLang ? noLang.value : labels[0].value
 }
 
+export function getAvailableLangs(ontology) {
+  const langs = new Set()
+  const allItems = [
+    ...Object.values(ontology.classes),
+    ...Object.values(ontology.objectProperties),
+    ...Object.values(ontology.dataProperties),
+    ...Object.values(ontology.annotationProperties),
+  ]
+  allItems.forEach(item =>
+    item.labels.forEach(l => { if (l.lang) langs.add(l.lang) })
+  )
+  return langs
+}
+
 export function getComments(item, lang = '') {
   const { comments } = item
   if (!comments.length) return []

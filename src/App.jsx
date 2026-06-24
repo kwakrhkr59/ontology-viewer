@@ -1,5 +1,5 @@
-import { useState, useCallback, useRef } from 'react'
-import { parseTTLText } from './utils/ttlParser'
+import { useState, useCallback, useRef, useMemo } from 'react'
+import { parseTTLText, getAvailableLangs } from './utils/ttlParser'
 import { serializeToTTL } from './utils/ttlSerializer'
 import Header from './components/Header'
 import Sidebar from './components/Sidebar'
@@ -40,6 +40,9 @@ export default function App() {
       setFileName(name)
       setSelectedItem(null)
       setParseError(null)
+      // Auto-select language: prefer 'en', then first available, then keep current
+      const langs = getAvailableLangs(parsed)
+      setLang(langs.has('en') ? 'en' : langs.has('ko') ? 'ko' : [...langs][0] || 'en')
       showToast(`파싱 완료 — 클래스 ${Object.keys(parsed.classes).length}개`)
     } catch (err) {
       console.error('[OntologyViewer] parse error:', err)
@@ -220,6 +223,11 @@ export default function App() {
     showToast('TTL 내보내기 완료')
   }, [ontology, fileName, showToast])
 
+  const availableLangs = useMemo(
+    () => ontology ? getAvailableLangs(ontology) : new Set(),
+    [ontology]
+  )
+
   const layoutClass = [
     'layout',
     !sidebarOpen && 'sidebar-collapsed',
@@ -240,6 +248,7 @@ export default function App() {
         onFileLoad={handleFileLoad}
         lang={lang}
         onLangChange={setLang}
+        availableLangs={availableLangs}
         onExport={exportTTL}
       />
 
