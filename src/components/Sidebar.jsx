@@ -105,20 +105,22 @@ export default function Sidebar({ ontology, selectedItem, onSelectClass, onSelec
   return (
     <div className="sidebar">
       <div className="sidebar-tabs">
-        {TABS.map(tab => (
-          <div
-            key={tab.id}
-            className={`sidebar-tab${activeTab === tab.id ? ' active' : ''}`}
-            onClick={() => setActiveTab(tab.id)}
-          >
-            {tab.label}
-          </div>
-        ))}
+        <div className="sidebar-tab-list">
+          {TABS.map(tab => (
+            <div
+              key={tab.id}
+              className={`sidebar-tab${activeTab === tab.id ? ' active' : ''}`}
+              onClick={() => setActiveTab(tab.id)}
+            >
+              {tab.label}
+            </div>
+          ))}
+        </div>
         <button
           className="sidebar-add-btn"
           onClick={ontology ? () => onAdd(activeTabDef.addType) : undefined}
           title={ontology ? `새 ${activeTabDef.label} 추가` : undefined}
-          style={ontology ? undefined : { visibility: 'hidden', pointerEvents: 'none' }}
+          style={!ontology ? { opacity: 0, pointerEvents: 'none' } : undefined}
         >+</button>
       </div>
 

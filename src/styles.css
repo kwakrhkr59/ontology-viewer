@@ -212,24 +212,31 @@ body {
 ══════════════════════════════════════════ */
 .layout {
   display: grid;
-  grid-template-columns: 260px 1px 340px 1px 1fr;
+  /* grid-template-columns + transition are set via inline style */
   overflow: hidden;
   min-height: 0;
-  transition: grid-template-columns 0.26s cubic-bezier(0.4, 0, 0.2, 1);
 }
-.layout.sidebar-collapsed              { grid-template-columns: 0px 1px 340px 1px 1fr; }
-.layout.detail-collapsed               { grid-template-columns: 260px 1px 0px 1px 1fr; }
-.layout.sidebar-collapsed.detail-collapsed { grid-template-columns: 0px 1px 0px 1px 1fr; }
+.layout--resizing { cursor: col-resize; user-select: none; }
 
 /* Panel separator + toggle handle */
 .panel-sep {
-  background: var(--border);
   position: relative;
   z-index: 20;
+  cursor: col-resize;
+  background: var(--border);
+  transition: background 0.15s;
+  flex-shrink: 0;
 }
+.panel-sep:hover { background: var(--accent); opacity: 0.55; }
+.layout--resizing .panel-sep { opacity: 0.9; }
 /* 목록 핸들이 항상 상세 핸들 위에 렌더되도록 */
 .panel-sep--sidebar { z-index: 22; }
 .panel-sep--detail  { z-index: 20; }
+/* collapsed sep: no resize cursor */
+.sidebar-collapsed .panel-sep--sidebar,
+.detail-collapsed  .panel-sep--detail  { cursor: default; }
+.sidebar-collapsed .panel-sep--sidebar:hover,
+.detail-collapsed  .panel-sep--detail:hover  { background: var(--border); opacity: 1; }
 
 /* detail이 접혀서 두 핸들이 같은 위치에 겹칠 때 세로로 분리 */
 .layout.detail-collapsed .panel-sep--sidebar .panel-toggle-btn {
@@ -279,10 +286,17 @@ body {
 
 .sidebar-tabs {
   display: flex;
+  align-items: stretch;
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
-  padding: 12px 12px 0;
+  padding: 12px 8px 0 12px;
   gap: 4px;
+}
+.sidebar-tab-list {
+  display: flex;
+  flex: 1;
+  gap: 4px;
+  min-width: 0;
 }
 .sidebar-tab {
   flex: 1;
@@ -810,7 +824,7 @@ body {
    SIDEBAR ADD BUTTON
 ══════════════════════════════════════════ */
 .sidebar-add-btn {
-  margin-left: auto;
+  flex-shrink: 0;
   background: transparent;
   border: none;
   color: var(--text2);

@@ -24,6 +24,11 @@ export default function App() {
   const [detailOpen, setDetailOpen]     = useState(true)
   const [isDragging, setIsDragging]     = useState(false)
   const [editModal, setEditModal]       = useState(null) // 'class' | 'objectProperty' | 'dataProperty' | null
+  const [sidebarWidth, setSidebarWidth] = useState(260)
+  const [detailWidth, setDetailWidth]   = useState(340)
+  const [isResizing, setIsResizing]     = useState(false)
+  const sidebarWidthRef = useRef(260)
+  const detailWidthRef  = useRef(340)
   const toastTimer   = useRef(null)
   const dragCounter  = useRef(0)
 
@@ -31,6 +36,28 @@ export default function App() {
     clearTimeout(toastTimer.current)
     setToast({ msg, visible: true })
     toastTimer.current = setTimeout(() => setToast(t => ({ ...t, visible: false })), 2000)
+  }, [])
+
+  useEffect(() => { sidebarWidthRef.current = sidebarWidth }, [sidebarWidth])
+  useEffect(() => { detailWidthRef.current  = detailWidth  }, [detailWidth])
+
+  const startResize = useCallback((which, e) => {
+    e.preventDefault()
+    const startX = e.clientX
+    const startW = which === 'sidebar' ? sidebarWidthRef.current : detailWidthRef.current
+    const [MIN, MAX] = which === 'sidebar' ? [180, 520] : [220, 600]
+    setIsResizing(true)
+    const onMove = ev => {
+      const w = Math.max(MIN, Math.min(MAX, startW + ev.clientX - startX))
+      which === 'sidebar' ? setSidebarWidth(w) : setDetailWidth(w)
+    }
+    const onUp = () => {
+      document.removeEventListener('mousemove', onMove)
+      document.removeEventListener('mouseup', onUp)
+      setIsResizing(false)
+    }
+    document.addEventListener('mousemove', onMove)
+    document.addEventListener('mouseup', onUp)
   }, [])
 
   const handleFileLoad = useCallback((name, text) => {
@@ -228,11 +255,25 @@ export default function App() {
     [ontology]
   )
 
-  const layoutClass = [
+  const layoutClassName = [
     'layout',
     !sidebarOpen && 'sidebar-collapsed',
     !detailOpen  && 'detail-collapsed',
+    isResizing   && 'layout--resizing',
   ].filter(Boolean).join(' ')
+
+  const layoutStyle = useMemo(() => ({
+    gridTemplateColumns: [
+      sidebarOpen ? `${sidebarWidth}px` : '0px',
+      '5px',
+      detailOpen ? `${detailWidth}px` : '0px',
+      '5px',
+      '1fr',
+    ].join(' '),
+    transition: isResizing
+      ? 'none'
+      : 'grid-template-columns 0.26s cubic-bezier(0.4,0,0.2,1)',
+  }), [sidebarOpen, sidebarWidth, detailOpen, detailWidth, isResizing])
 
   return (
     <div
@@ -252,7 +293,7 @@ export default function App() {
         onExport={exportTTL}
       />
 
-      <div className={layoutClass}>
+      <div className={layoutClassName} style={layoutStyle}>
         <Sidebar
           ontology={ontology}
           selectedItem={selectedItem}
@@ -262,10 +303,14 @@ export default function App() {
           onAdd={handleAdd}
         />
 
-        <div className="panel-sep panel-sep--sidebar">
+        <div
+          className="panel-sep panel-sep--sidebar"
+          onMouseDown={sidebarOpen ? e => startResize('sidebar', e) : undefined}
+        >
           <button
             className="panel-toggle-btn"
             onClick={() => setSidebarOpen(v => !v)}
+            onMouseDown={e => e.stopPropagation()}
             title={sidebarOpen ? '목록 패널 접기' : '목록 패널 펼치기'}
           >
             {sidebarOpen ? '‹' : '›'}
@@ -282,10 +327,14 @@ export default function App() {
           onDelete={deleteItem}
         />
 
-        <div className="panel-sep panel-sep--detail">
+        <div
+          className="panel-sep panel-sep--detail"
+          onMouseDown={detailOpen ? e => startResize('detail', e) : undefined}
+        >
           <button
             className="panel-toggle-btn"
             onClick={() => setDetailOpen(v => !v)}
+            onMouseDown={e => e.stopPropagation()}
             title={detailOpen ? '상세 패널 접기' : '상세 패널 펼치기'}
           >
             {detailOpen ? '‹' : '›'}
