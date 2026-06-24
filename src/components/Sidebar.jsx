@@ -114,13 +114,12 @@ export default function Sidebar({ ontology, selectedItem, onSelectClass, onSelec
             {tab.label}
           </div>
         ))}
-        {ontology && (
-          <button
-            className="sidebar-add-btn"
-            onClick={() => onAdd(activeTabDef.addType)}
-            title={`새 ${activeTabDef.label} 추가`}
-          >+</button>
-        )}
+        <button
+          className="sidebar-add-btn"
+          onClick={ontology ? () => onAdd(activeTabDef.addType) : undefined}
+          title={ontology ? `새 ${activeTabDef.label} 추가` : undefined}
+          style={ontology ? undefined : { visibility: 'hidden', pointerEvents: 'none' }}
+        >+</button>
       </div>
 
       <div className="sidebar-search">
