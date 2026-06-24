@@ -1,4 +1,4 @@
-import { useCallback } from 'react'
+import { useState } from 'react'
 import { getDisplayName, getComments, shorten, localName } from '../utils/ttlParser'
 
 function copyToClipboard(text, showToast) {
@@ -92,7 +92,27 @@ function DataPropCard({ uri, ontology, onSelectProperty, prefixes, lang }) {
   )
 }
 
-export default function DetailPanel({ ontology, selectedItem, onSelectClass, onSelectProperty, showToast, lang }) {
+function DeleteButton({ onDelete }) {
+  const [confirm, setConfirm] = useState(false)
+
+  if (confirm) {
+    return (
+      <div className="delete-confirm">
+        <span className="delete-confirm-msg">삭제할까요?</span>
+        <button className="btn btn-ghost btn-sm" onClick={() => setConfirm(false)}>취소</button>
+        <button className="btn btn-danger btn-sm" onClick={onDelete}>삭제</button>
+      </div>
+    )
+  }
+
+  return (
+    <button className="btn btn-danger-ghost btn-sm" onClick={() => setConfirm(true)} title="삭제">
+      삭제
+    </button>
+  )
+}
+
+export default function DetailPanel({ ontology, selectedItem, onSelectClass, onSelectProperty, showToast, lang, onDelete }) {
   if (!ontology || !selectedItem) {
     return (
       <div className="detail-panel">
@@ -126,8 +146,11 @@ export default function DetailPanel({ ontology, selectedItem, onSelectClass, onS
       <div className="detail-panel">
         <div className="detail-content">
           <div className="detail-header">
-            <h2>{label}</h2>
-            <UriRow uri={uri} showToast={showToast} />
+            <div className="detail-header-main">
+              <h2>{label}</h2>
+              <UriRow uri={uri} showToast={showToast} />
+            </div>
+            <DeleteButton onDelete={() => onDelete(uri, 'class')} />
           </div>
 
           {clsComments.length > 0 && (
@@ -227,8 +250,11 @@ export default function DetailPanel({ ontology, selectedItem, onSelectClass, onS
     <div className="detail-panel">
       <div className="detail-content">
         <div className="detail-header">
-          <h2>{label}</h2>
-          <UriRow uri={uri} showToast={showToast} />
+          <div className="detail-header-main">
+            <h2>{label}</h2>
+            <UriRow uri={uri} showToast={showToast} />
+          </div>
+          <DeleteButton onDelete={() => onDelete(uri, type)} />
         </div>
 
         <div>

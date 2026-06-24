@@ -14,7 +14,7 @@ function GraphIcon() {
   )
 }
 
-export default function Header({ ontology, fileName, onFileLoad, lang, onLangChange }) {
+export default function Header({ ontology, fileName, onFileLoad, lang, onLangChange, onExport }) {
   const inputRef = useRef(null)
 
   const handleFile = (e) => {
@@ -73,6 +73,12 @@ export default function Header({ ontology, fileName, onFileLoad, lang, onLangCha
           KO
         </button>
       </div>
+
+      {ontology && (
+        <button className="export-btn" onClick={onExport} title="편집된 온톨로지를 TTL로 내보내기">
+          Export TTL
+        </button>
+      )}
 
       {stats && (
         <div className="stats">

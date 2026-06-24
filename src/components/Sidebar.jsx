@@ -2,9 +2,9 @@ import { useState, useMemo } from 'react'
 import { getDisplayName } from '../utils/ttlParser'
 
 const TABS = [
-  { id: 'classes',   label: 'Classes' },
-  { id: 'objProps',  label: 'Obj Props' },
-  { id: 'dataProps', label: 'Data Props' },
+  { id: 'classes',   label: 'Classes',    addType: 'class' },
+  { id: 'objProps',  label: 'Obj Props',  addType: 'objectProperty' },
+  { id: 'dataProps', label: 'Data Props', addType: 'dataProperty' },
 ]
 
 function ClassTreeNode({ cls, classes, depth, selectedUri, onSelect, expanded, onToggle, lang }) {
@@ -59,7 +59,7 @@ function ClassTreeNode({ cls, classes, depth, selectedUri, onSelect, expanded, o
   )
 }
 
-export default function Sidebar({ ontology, selectedItem, onSelectClass, onSelectProperty, lang }) {
+export default function Sidebar({ ontology, selectedItem, onSelectClass, onSelectProperty, lang, onAdd }) {
   const [activeTab, setActiveTab] = useState('classes')
   const [query, setQuery]         = useState('')
   const [expanded, setExpanded]   = useState(new Set())
@@ -100,6 +100,7 @@ export default function Sidebar({ ontology, selectedItem, onSelectClass, onSelec
 
   const selectedUri  = selectedItem?.uri
   const selectedType = selectedItem?.type
+  const activeTabDef = TABS.find(t => t.id === activeTab)
 
   return (
     <div className="sidebar">
@@ -113,6 +114,13 @@ export default function Sidebar({ ontology, selectedItem, onSelectClass, onSelec
             {tab.label}
           </div>
         ))}
+        {ontology && (
+          <button
+            className="sidebar-add-btn"
+            onClick={() => onAdd(activeTabDef.addType)}
+            title={`새 ${activeTabDef.label} 추가`}
+          >+</button>
+        )}
       </div>
 
       <div className="sidebar-search">
