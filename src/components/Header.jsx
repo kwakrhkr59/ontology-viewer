@@ -14,7 +14,7 @@ function GraphIcon() {
   )
 }
 
-export default function Header({ ontology, fileName, onFileLoad }) {
+export default function Header({ ontology, fileName, onFileLoad, lang, onLangChange }) {
   const inputRef = useRef(null)
 
   const handleFile = (e) => {
@@ -58,6 +58,21 @@ export default function Header({ ontology, fileName, onFileLoad }) {
       />
 
       {fileName && <span className="file-name">{fileName}</span>}
+
+      <div className="lang-toggle" title="언어 전환 (EN / KO)">
+        <button
+          className={`lang-btn${lang === 'en' ? ' lang-btn--active' : ''}`}
+          onClick={() => onLangChange('en')}
+        >
+          EN
+        </button>
+        <button
+          className={`lang-btn${lang === 'ko' ? ' lang-btn--active' : ''}`}
+          onClick={() => onLangChange('ko')}
+        >
+          KO
+        </button>
+      </div>
 
       {stats && (
         <div className="stats">

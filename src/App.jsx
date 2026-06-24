@@ -12,6 +12,7 @@ export default function App() {
   const [fileName, setFileName]         = useState(null)
   const [selectedItem, setSelectedItem] = useState(null)
   const [parseError, setParseError]     = useState(null)
+  const [lang, setLang]                 = useState('en')
   const [toast, setToast]               = useState({ msg: '', visible: false })
   const [sidebarOpen, setSidebarOpen]   = useState(true)
   const [detailOpen, setDetailOpen]     = useState(true)
@@ -96,6 +97,8 @@ export default function App() {
         ontology={ontology}
         fileName={fileName}
         onFileLoad={handleFileLoad}
+        lang={lang}
+        onLangChange={setLang}
       />
 
       <div className={layoutClass}>
@@ -104,6 +107,7 @@ export default function App() {
           selectedItem={selectedItem}
           onSelectClass={handleSelectClass}
           onSelectProperty={handleSelectProperty}
+          lang={lang}
         />
 
         <div className="panel-sep panel-sep--sidebar">
@@ -122,6 +126,7 @@ export default function App() {
           onSelectClass={handleSelectClass}
           onSelectProperty={handleSelectProperty}
           showToast={showToast}
+          lang={lang}
         />
 
         <div className="panel-sep panel-sep--detail">
@@ -139,6 +144,7 @@ export default function App() {
           selectedItem={selectedItem}
           onSelectClass={handleSelectClass}
           showToast={showToast}
+          lang={lang}
         />
       </div>
 

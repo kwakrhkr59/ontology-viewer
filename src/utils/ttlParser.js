@@ -51,6 +51,12 @@ export function parseTTLText(text) {
   const vals = (subj, pred) =>
     store.getQuads(subj, pred, null, null).map(q => q.object.value)
 
+  const labelVals = (subj, pred) =>
+    store.getQuads(subj, pred, null, null).map(q => ({
+      value: q.object.value,
+      lang: q.object.language || '',
+    }))
+
   const hasType = (subj, type) =>
     store.countQuads(subj, R.type, type, null) > 0
 
@@ -68,8 +74,8 @@ export function parseTTLText(text) {
     if (uri.startsWith('_:')) return
     classes[uri] = {
       uri,
-      labels:       vals(uri, R.label),
-      comments:     vals(uri, R.comment),
+      labels:       labelVals(uri, R.label),
+      comments:     labelVals(uri, R.comment),
       superClasses: store.getQuads(uri, R.subClassOf, null, null)
         .filter(q => q.object.termType === 'NamedNode')
         .map(q => q.object.value),
@@ -107,8 +113,8 @@ export function parseTTLText(text) {
       .map(q2 => q2.object.value)
     objectProperties[uri] = {
       uri,
-      labels:          vals(uri, R.label),
-      comments:        vals(uri, R.comment),
+      labels:          labelVals(uri, R.label),
+      comments:        labelVals(uri, R.comment),
       domains,
       ranges,
       inverseOf:       vals(uri, R.inverseOf),
@@ -128,8 +134,8 @@ export function parseTTLText(text) {
       .map(q2 => q2.object.value)
     dataProperties[uri] = {
       uri,
-      labels:   vals(uri, R.label),
-      comments: vals(uri, R.comment),
+      labels:   labelVals(uri, R.label),
+      comments: labelVals(uri, R.comment),
       domains,
       ranges:   vals(uri, R.range),
     }
@@ -143,8 +149,8 @@ export function parseTTLText(text) {
     if (uri.startsWith('_:')) return
     annotationProperties[uri] = {
       uri,
-      labels:   vals(uri, R.label),
-      comments: vals(uri, R.comment),
+      labels:   labelVals(uri, R.label),
+      comments: labelVals(uri, R.comment),
       domains:  store.getQuads(uri, R.domain, null, null)
         .filter(q2 => q2.object.termType === 'NamedNode')
         .map(q2 => q2.object.value),
@@ -176,8 +182,27 @@ export function shorten(uri, prefixes) {
   return localName(uri)
 }
 
-export function getDisplayName(item) {
-  return item.labels[0] || localName(item.uri)
+export function getDisplayName(item, lang = '') {
+  const { labels } = item
+  if (!labels.length) return localName(item.uri)
+  if (lang) {
+    const match = labels.find(l => l.lang === lang)
+    if (match) return match.value
+  }
+  const noLang = labels.find(l => !l.lang)
+  return noLang ? noLang.value : labels[0].value
+}
+
+export function getComments(item, lang = '') {
+  const { comments } = item
+  if (!comments.length) return []
+  if (lang) {
+    const matches = comments.filter(c => c.lang === lang)
+    if (matches.length) return matches.map(c => c.value)
+  }
+  const noLang = comments.filter(c => !c.lang)
+  if (noLang.length) return noLang.map(c => c.value)
+  return comments.map(c => c.value)
 }
 
 export function getNsPrefix(uri, prefixes) {

@@ -7,7 +7,7 @@ const TABS = [
   { id: 'dataProps', label: 'Data Props' },
 ]
 
-function ClassTreeNode({ cls, classes, depth, selectedUri, onSelect, expanded, onToggle }) {
+function ClassTreeNode({ cls, classes, depth, selectedUri, onSelect, expanded, onToggle, lang }) {
   if (depth > 30) return null
 
   const childUris = cls.subClasses.filter(uri => classes[uri])
@@ -31,7 +31,7 @@ function ClassTreeNode({ cls, classes, depth, selectedUri, onSelect, expanded, o
           <span className="tree-toggle-placeholder" />
         )}
         <span className="tree-class-dot" />
-        <span className="list-item-label">{getDisplayName(cls)}</span>
+        <span className="list-item-label">{getDisplayName(cls, lang)}</span>
         {hasChildren && <span className="list-item-count">{childUris.length}</span>}
       </div>
 
@@ -39,7 +39,7 @@ function ClassTreeNode({ cls, classes, depth, selectedUri, onSelect, expanded, o
         <div className="tree-children">
           {childUris
             .map(uri => classes[uri])
-            .sort((a, b) => getDisplayName(a).localeCompare(getDisplayName(b)))
+            .sort((a, b) => getDisplayName(a, lang).localeCompare(getDisplayName(b, lang)))
             .map(child => (
               <ClassTreeNode
                 key={child.uri}
@@ -50,6 +50,7 @@ function ClassTreeNode({ cls, classes, depth, selectedUri, onSelect, expanded, o
                 onSelect={onSelect}
                 expanded={expanded}
                 onToggle={onToggle}
+                lang={lang}
               />
             ))}
         </div>
@@ -58,7 +59,7 @@ function ClassTreeNode({ cls, classes, depth, selectedUri, onSelect, expanded, o
   )
 }
 
-export default function Sidebar({ ontology, selectedItem, onSelectClass, onSelectProperty }) {
+export default function Sidebar({ ontology, selectedItem, onSelectClass, onSelectProperty, lang }) {
   const [activeTab, setActiveTab] = useState('classes')
   const [query, setQuery]         = useState('')
   const [expanded, setExpanded]   = useState(new Set())
@@ -77,15 +78,15 @@ export default function Sidebar({ ontology, selectedItem, onSelectClass, onSelec
     if (!ontology) return []
     return Object.values(ontology.classes)
       .filter(cls => cls.superClasses.every(sup => !ontology.classes[sup]))
-      .sort((a, b) => getDisplayName(a).localeCompare(getDisplayName(b)))
-  }, [ontology])
+      .sort((a, b) => getDisplayName(a, lang).localeCompare(getDisplayName(b, lang)))
+  }, [ontology, lang])
 
   const flatFiltered = useMemo(() => {
     if (!ontology || !q) return null
     return Object.values(ontology.classes)
-      .filter(cls => getDisplayName(cls).toLowerCase().includes(q) || cls.uri.toLowerCase().includes(q))
-      .sort((a, b) => getDisplayName(a).localeCompare(getDisplayName(b)))
-  }, [ontology, q])
+      .filter(cls => getDisplayName(cls, lang).toLowerCase().includes(q) || cls.uri.toLowerCase().includes(q))
+      .sort((a, b) => getDisplayName(a, lang).localeCompare(getDisplayName(b, lang)))
+  }, [ontology, q, lang])
 
   const filteredProps = useMemo(() => {
     if (!ontology) return []
@@ -93,9 +94,9 @@ export default function Sidebar({ ontology, selectedItem, onSelectClass, onSelec
       ? Object.values(ontology.objectProperties)
       : Object.values(ontology.dataProperties)
     return src
-      .filter(p => !q || getDisplayName(p).toLowerCase().includes(q) || p.uri.toLowerCase().includes(q))
-      .sort((a, b) => getDisplayName(a).localeCompare(getDisplayName(b)))
-  }, [ontology, activeTab, q])
+      .filter(p => !q || getDisplayName(p, lang).toLowerCase().includes(q) || p.uri.toLowerCase().includes(q))
+      .sort((a, b) => getDisplayName(a, lang).localeCompare(getDisplayName(b, lang)))
+  }, [ontology, activeTab, q, lang])
 
   const selectedUri  = selectedItem?.uri
   const selectedType = selectedItem?.type
@@ -145,7 +146,7 @@ export default function Sidebar({ ontology, selectedItem, onSelectClass, onSelec
                   >
                     <span className="tree-toggle-placeholder" />
                     <span className="tree-class-dot" />
-                    <span className="list-item-label">{getDisplayName(cls)}</span>
+                    <span className="list-item-label">{getDisplayName(cls, lang)}</span>
                   </div>
                 ))
             : rootClasses.length === 0
@@ -160,6 +161,7 @@ export default function Sidebar({ ontology, selectedItem, onSelectClass, onSelec
                     onSelect={onSelectClass}
                     expanded={expanded}
                     onToggle={onToggle}
+                    lang={lang}
                   />
                 ))
         )}
@@ -176,7 +178,7 @@ export default function Sidebar({ ontology, selectedItem, onSelectClass, onSelec
                   title={prop.uri}
                 >
                   <span className="list-item-prop-icon" style={{ color: 'var(--obj-fg)' }}>→</span>
-                  <span className="list-item-label">{getDisplayName(prop)}</span>
+                  <span className="list-item-label">{getDisplayName(prop, lang)}</span>
                 </div>
               ))
         )}
@@ -193,7 +195,7 @@ export default function Sidebar({ ontology, selectedItem, onSelectClass, onSelec
                   title={prop.uri}
                 >
                   <span className="list-item-prop-icon" style={{ color: 'var(--data-fg)' }}>#</span>
-                  <span className="list-item-label">{getDisplayName(prop)}</span>
+                  <span className="list-item-label">{getDisplayName(prop, lang)}</span>
                 </div>
               ))
         )}

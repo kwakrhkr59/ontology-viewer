@@ -122,16 +122,18 @@ function buildColorMap(ont, mode) {
   return { map, roots }
 }
 
-export default function GraphView({ ontology, selectedItem, onSelectClass, showToast }) {
+export default function GraphView({ ontology, selectedItem, onSelectClass, showToast, lang }) {
   const containerRef  = useRef(null)
   const cyRef         = useRef(null)
   const layoutIdx     = useRef(0)
   const ontologyRef   = useRef(ontology)
+  const langRef       = useRef(lang)
   const currentView   = useRef(null) // { type: 'class'|'prop'|'full', uri?, propType? }
 
   const [colorMode, setColorMode] = useState('none')
 
   useEffect(() => { ontologyRef.current = ontology }, [ontology])
+  useEffect(() => { langRef.current = lang }, [lang])
 
   const { map: colorMap, roots } = useMemo(
     () => buildColorMap(ontology, colorMode),
@@ -165,7 +167,7 @@ export default function GraphView({ ontology, selectedItem, onSelectClass, showT
     return () => { ro.disconnect(); cy.destroy() }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── colorMode 변경 시 현재 뷰 재빌드 ──────────────────────
+  // ── colorMode / lang 변경 시 현재 뷰 재빌드 ──────────────
   useEffect(() => {
     const cy  = cyRef.current
     const ont = ontologyRef.current
@@ -175,7 +177,7 @@ export default function GraphView({ ontology, selectedItem, onSelectClass, showT
     if      (view.type === 'class') buildClassGraph(cy, ont, view.uri)
     else if (view.type === 'prop')  buildPropGraph(cy, ont, view.uri, view.propType)
     else if (view.type === 'full')  buildFullGraph(cy, ont)
-  }, [colorMap]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [colorMap, lang]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── 선택 항목 변경 ─────────────────────────────────────────
   useEffect(() => {
@@ -204,7 +206,7 @@ export default function GraphView({ ontology, selectedItem, onSelectClass, showT
     const color = colorMapRef.current.get(u) ?? DEFAULT_STYLE
     return {
       id:          u,
-      label:       c ? getDisplayName(c) : shorten(u, ont.prefixes),
+      label:       c ? getDisplayName(c, langRef.current) : shorten(u, ont.prefixes),
       bgColor:     color.bg,
       borderColor: color.border,
     }
@@ -247,7 +249,7 @@ export default function GraphView({ ontology, selectedItem, onSelectClass, showT
     cls.outObjProps.forEach(pUri => {
       const p = ont.objectProperties[pUri]
       if (!p) return
-      const label = getDisplayName(p)
+      const label = getDisplayName(p, langRef.current)
       p.ranges.forEach(r => {
         addNode(r)
         const eid = `op_${pUri}_${uri}_${r}`
@@ -261,7 +263,7 @@ export default function GraphView({ ontology, selectedItem, onSelectClass, showT
     cls.inObjProps.forEach(pUri => {
       const p = ont.objectProperties[pUri]
       if (!p) return
-      const label = getDisplayName(p)
+      const label = getDisplayName(p, langRef.current)
       p.domains.forEach(d => {
         addNode(d)
         const eid = `op_${pUri}_${d}_${uri}`
@@ -281,7 +283,7 @@ export default function GraphView({ ontology, selectedItem, onSelectClass, showT
       : ont.dataProperties[uri]
     if (!prop || !prop.domains.length) return
 
-    const label = getDisplayName(prop)
+    const label = getDisplayName(prop, langRef.current)
     const nodes = new Map()
     const edges = []
 
@@ -329,7 +331,7 @@ export default function GraphView({ ontology, selectedItem, onSelectClass, showT
         const eid = `op_${p.uri}_${d}_${r}`
         if (!addedEdges.has(eid)) {
           addedEdges.add(eid)
-          edges.push({ data: { id: eid, source: d, target: r, label: getDisplayName(p) } })
+          edges.push({ data: { id: eid, source: d, target: r, label: getDisplayName(p, langRef.current) } })
         }
       }))
     })
@@ -394,7 +396,7 @@ export default function GraphView({ ontology, selectedItem, onSelectClass, showT
   // 범례: root/tree 모드일 때 루트별 색상 표시 (최대 6개)
   const treeLegend = colorMode !== 'none' && roots.length > 0
     ? roots.slice(0, 6).map((root, i) => ({
-        label: getDisplayName(root),
+        label: getDisplayName(root, lang),
         color: PALETTE[i % PALETTE.length],
       }))
     : null

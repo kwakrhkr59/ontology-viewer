@@ -1,5 +1,5 @@
 import { useCallback } from 'react'
-import { getDisplayName, shorten, localName } from '../utils/ttlParser'
+import { getDisplayName, getComments, shorten, localName } from '../utils/ttlParser'
 
 function copyToClipboard(text, showToast) {
   navigator.clipboard.writeText(text).then(() => showToast('URI 복사됨'))
@@ -25,9 +25,9 @@ function Section({ title, children }) {
   )
 }
 
-function ClassChip({ uri, ontology, onSelectClass }) {
+function ClassChip({ uri, ontology, onSelectClass, lang }) {
   const cls = ontology.classes[uri]
-  const label = cls ? getDisplayName(cls) : localName(uri)
+  const label = cls ? getDisplayName(cls, lang) : localName(uri)
   return (
     <span className="chip chip-class" onClick={() => onSelectClass(uri)} title={uri}>
       {label}
@@ -35,10 +35,10 @@ function ClassChip({ uri, ontology, onSelectClass }) {
   )
 }
 
-function ObjPropCard({ uri, ontology, direction, onSelectProperty, onSelectClass, prefixes }) {
+function ObjPropCard({ uri, ontology, direction, onSelectProperty, onSelectClass, prefixes, lang }) {
   const prop = ontology.objectProperties[uri]
   if (!prop) return null
-  const label = getDisplayName(prop)
+  const label = getDisplayName(prop, lang)
   const relatedUris = direction === 'out' ? prop.ranges : prop.domains
 
   return (
@@ -46,15 +46,15 @@ function ObjPropCard({ uri, ontology, direction, onSelectProperty, onSelectClass
       <div className="prop-card-name" onClick={() => onSelectProperty(uri, 'objectProperty')}>
         {label}
       </div>
-      {prop.comments[0] && (
-        <div className="prop-card-comment">{prop.comments[0]}</div>
+      {getComments(prop, lang)[0] && (
+        <div className="prop-card-comment">{getComments(prop, lang)[0]}</div>
       )}
       <div className="prop-card-meta">
         <span className="tag tag-obj">Object</span>
         {relatedUris.map(r => (
           <span
             key={r}
-            className={`tag ${ontology.classes[r] ? 'tag-range' : 'tag-range'}`}
+            className="tag tag-range"
             style={{ cursor: ontology.classes[r] ? 'pointer' : 'default' }}
             onClick={() => ontology.classes[r] && onSelectClass(r)}
             title={r}
@@ -70,17 +70,17 @@ function ObjPropCard({ uri, ontology, direction, onSelectProperty, onSelectClass
   )
 }
 
-function DataPropCard({ uri, ontology, onSelectProperty, prefixes }) {
+function DataPropCard({ uri, ontology, onSelectProperty, prefixes, lang }) {
   const prop = ontology.dataProperties[uri]
   if (!prop) return null
-  const label = getDisplayName(prop)
+  const label = getDisplayName(prop, lang)
   return (
     <div className="prop-card">
       <div className="prop-card-name" onClick={() => onSelectProperty(uri, 'dataProperty')}>
         {label}
       </div>
-      {prop.comments[0] && (
-        <div className="prop-card-comment">{prop.comments[0]}</div>
+      {getComments(prop, lang)[0] && (
+        <div className="prop-card-comment">{getComments(prop, lang)[0]}</div>
       )}
       <div className="prop-card-meta">
         <span className="tag tag-data">DataProp</span>
@@ -92,7 +92,7 @@ function DataPropCard({ uri, ontology, onSelectProperty, prefixes }) {
   )
 }
 
-export default function DetailPanel({ ontology, selectedItem, onSelectClass, onSelectProperty, showToast }) {
+export default function DetailPanel({ ontology, selectedItem, onSelectClass, onSelectProperty, showToast, lang }) {
   if (!ontology || !selectedItem) {
     return (
       <div className="detail-panel">
@@ -120,7 +120,8 @@ export default function DetailPanel({ ontology, selectedItem, onSelectClass, onS
   if (type === 'class') {
     const cls = ontology.classes[uri]
     if (!cls) return null
-    const label = getDisplayName(cls)
+    const label = getDisplayName(cls, lang)
+    const clsComments = getComments(cls, lang)
     return (
       <div className="detail-panel">
         <div className="detail-content">
@@ -129,9 +130,9 @@ export default function DetailPanel({ ontology, selectedItem, onSelectClass, onS
             <UriRow uri={uri} showToast={showToast} />
           </div>
 
-          {cls.comments.length > 0 && (
+          {clsComments.length > 0 && (
             <Section title="설명">
-              {cls.comments.map((c, i) => (
+              {clsComments.map((c, i) => (
                 <p key={i} className="detail-comment">{c}</p>
               ))}
             </Section>
@@ -141,7 +142,7 @@ export default function DetailPanel({ ontology, selectedItem, onSelectClass, onS
             <Section title="상위 클래스 (SuperClass)">
               <div className="chip-list">
                 {cls.superClasses.map(u => (
-                  <ClassChip key={u} uri={u} ontology={ontology} onSelectClass={onSelectClass} />
+                  <ClassChip key={u} uri={u} ontology={ontology} onSelectClass={onSelectClass} lang={lang} />
                 ))}
               </div>
             </Section>
@@ -151,7 +152,7 @@ export default function DetailPanel({ ontology, selectedItem, onSelectClass, onS
             <Section title={`하위 클래스 (SubClass) · ${cls.subClasses.length}개`}>
               <div className="chip-list">
                 {cls.subClasses.map(u => (
-                  <ClassChip key={u} uri={u} ontology={ontology} onSelectClass={onSelectClass} />
+                  <ClassChip key={u} uri={u} ontology={ontology} onSelectClass={onSelectClass} lang={lang} />
                 ))}
               </div>
             </Section>
@@ -168,6 +169,7 @@ export default function DetailPanel({ ontology, selectedItem, onSelectClass, onS
                   onSelectProperty={onSelectProperty}
                   onSelectClass={onSelectClass}
                   prefixes={pfx}
+                  lang={lang}
                 />
               ))}
             </Section>
@@ -184,6 +186,7 @@ export default function DetailPanel({ ontology, selectedItem, onSelectClass, onS
                   onSelectProperty={onSelectProperty}
                   onSelectClass={onSelectClass}
                   prefixes={pfx}
+                  lang={lang}
                 />
               ))}
             </Section>
@@ -198,6 +201,7 @@ export default function DetailPanel({ ontology, selectedItem, onSelectClass, onS
                   ontology={ontology}
                   onSelectProperty={onSelectProperty}
                   prefixes={pfx}
+                  lang={lang}
                 />
               ))}
             </Section>
@@ -216,7 +220,8 @@ export default function DetailPanel({ ontology, selectedItem, onSelectClass, onS
   const isObj  = type === 'objectProperty'
   const prop   = isObj ? ontology.objectProperties[uri] : ontology.dataProperties[uri]
   if (!prop) return null
-  const label  = getDisplayName(prop)
+  const label  = getDisplayName(prop, lang)
+  const propComments = getComments(prop, lang)
 
   return (
     <div className="detail-panel">
@@ -232,9 +237,9 @@ export default function DetailPanel({ ontology, selectedItem, onSelectClass, onS
           </span>
         </div>
 
-        {prop.comments.length > 0 && (
+        {propComments.length > 0 && (
           <Section title="설명">
-            {prop.comments.map((c, i) => (
+            {propComments.map((c, i) => (
               <p key={i} className="detail-comment">{c}</p>
             ))}
           </Section>
@@ -244,7 +249,7 @@ export default function DetailPanel({ ontology, selectedItem, onSelectClass, onS
           <Section title="Domain">
             <div className="chip-list">
               {prop.domains.map(u => (
-                <ClassChip key={u} uri={u} ontology={ontology} onSelectClass={onSelectClass} />
+                <ClassChip key={u} uri={u} ontology={ontology} onSelectClass={onSelectClass} lang={lang} />
               ))}
             </div>
           </Section>
@@ -255,7 +260,7 @@ export default function DetailPanel({ ontology, selectedItem, onSelectClass, onS
             <div className="chip-list">
               {prop.ranges.map(u => (
                 ontology.classes[u]
-                  ? <ClassChip key={u} uri={u} ontology={ontology} onSelectClass={onSelectClass} />
+                  ? <ClassChip key={u} uri={u} ontology={ontology} onSelectClass={onSelectClass} lang={lang} />
                   : <span key={u} className="chip chip-range" title={u}>{shorten(u, pfx)}</span>
               ))}
             </div>
