@@ -630,6 +630,12 @@ body {
   transform: translateY(-1px);
 }
 .graph-btn:active { transform: translateY(0); }
+.graph-btn--active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.3);
+}
 
 .graph-legend {
   position: absolute;
