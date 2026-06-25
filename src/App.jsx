@@ -43,18 +43,25 @@ export default function App() {
 
   const startResize = useCallback((which, e) => {
     e.preventDefault()
-    const startX = e.clientX
-    const startW = which === 'sidebar' ? sidebarWidthRef.current : detailWidthRef.current
+    const startX   = e.clientX
+    const startW   = which === 'sidebar' ? sidebarWidthRef.current : detailWidthRef.current
     const [MIN, MAX] = which === 'sidebar' ? [180, 520] : [220, 600]
+    const DEFAULT_W  = which === 'sidebar' ? 260 : 340
     setIsResizing(true)
+    let lastW = startW
     const onMove = ev => {
       const w = Math.max(MIN, Math.min(MAX, startW + ev.clientX - startX))
+      lastW = w
       which === 'sidebar' ? setSidebarWidth(w) : setDetailWidth(w)
     }
     const onUp = () => {
       document.removeEventListener('mousemove', onMove)
       document.removeEventListener('mouseup', onUp)
       setIsResizing(false)
+      if (lastW <= MIN) {
+        if (which === 'sidebar') { setSidebarOpen(false); setSidebarWidth(DEFAULT_W) }
+        else                     { setDetailOpen(false);  setDetailWidth(DEFAULT_W)  }
+      }
     }
     document.addEventListener('mousemove', onMove)
     document.addEventListener('mouseup', onUp)

@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import { getDisplayName } from '../utils/ttlParser'
 
 const TABS = [
@@ -63,6 +63,15 @@ export default function Sidebar({ ontology, selectedItem, onSelectClass, onSelec
   const [activeTab, setActiveTab] = useState('classes')
   const [query, setQuery]         = useState('')
   const [expanded, setExpanded]   = useState(new Set())
+  const tabListRef = useRef(null)
+
+  const handleTabClick = (tabId) => {
+    setActiveTab(tabId)
+    requestAnimationFrame(() => {
+      tabListRef.current?.querySelector(`[data-tab="${tabId}"]`)
+        ?.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'nearest' })
+    })
+  }
 
   const onToggle = (uri) => {
     setExpanded(prev => {
@@ -105,12 +114,13 @@ export default function Sidebar({ ontology, selectedItem, onSelectClass, onSelec
   return (
     <div className="sidebar">
       <div className="sidebar-tabs">
-        <div className="sidebar-tab-list">
+        <div className="sidebar-tab-list" ref={tabListRef}>
           {TABS.map(tab => (
             <div
               key={tab.id}
+              data-tab={tab.id}
               className={`sidebar-tab${activeTab === tab.id ? ' active' : ''}`}
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => handleTabClick(tab.id)}
             >
               {tab.label}
             </div>
