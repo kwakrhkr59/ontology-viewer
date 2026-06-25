@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useMemo } from 'react'
+import { useState, useCallback, useRef, useMemo, useEffect } from 'react'
 import { parseTTLText, getAvailableLangs } from './utils/ttlParser'
 import { serializeToTTL } from './utils/ttlSerializer'
 import Header from './components/Header'
