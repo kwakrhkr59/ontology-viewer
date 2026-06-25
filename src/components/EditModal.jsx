@@ -21,7 +21,6 @@ const CHARACTERISTICS = [
 
 const STD_PREFIXES = new Set(['rdf', 'rdfs', 'owl', 'xsd'])
 
-// Calculate fixed position for dropdown to escape overflow:auto clipping
 function useFixedDropdown(containerRef) {
   const [pos, setPos] = useState({ top: 0, left: 0, width: 0 })
   const update = useCallback(() => {
@@ -148,23 +147,48 @@ function SingleSelect({ items, value, onChange, placeholder }) {
   )
 }
 
-export default function EditModal({ type, ontology, lang, onSubmit, onClose }) {
+export default function EditModal({ mode = 'add', type, uri, ontology, lang, onSubmit, onClose }) {
+  const isEdit = mode === 'edit'
+
   const customPrefixes = Object.entries(ontology.prefixes)
     .filter(([p]) => !STD_PREFIXES.has(p))
 
+  const initialItem = isEdit
+    ? (type === 'class'            ? ontology.classes[uri]
+       : type === 'objectProperty' ? ontology.objectProperties[uri]
+       : ontology.dataProperties[uri])
+    : null
+
+  const getLabel   = (l) => initialItem?.labels?.find(x => x.lang === l)?.value ?? ''
+  const getComment = (l) => initialItem?.comments?.find(x => x.lang === l)?.value ?? ''
+
   const [prefix, setPrefix]         = useState(customPrefixes[0]?.[0] ?? '')
   const [localName, setLocalName]   = useState('')
-  const [labelEn, setLabelEn]       = useState('')
-  const [labelKo, setLabelKo]       = useState('')
-  const [commentEn, setCommentEn]   = useState('')
-  const [commentKo, setCommentKo]   = useState('')
-  const [superClasses, setSuperClasses] = useState([])
-  const [domains, setDomains]       = useState([])
-  const [objRanges, setObjRanges]   = useState([])
-  const [dataRanges, setDataRanges] = useState([])
-  const [inverseOf, setInverseOf]   = useState('')
-  const [characteristics, setCharacteristics] = useState([])
-  const [error, setError]           = useState('')
+  const [labelEn, setLabelEn]       = useState(getLabel('en'))
+  const [labelKo, setLabelKo]       = useState(getLabel('ko'))
+  const [commentEn, setCommentEn]   = useState(getComment('en'))
+  const [commentKo, setCommentKo]   = useState(getComment('ko'))
+  const [superClasses, setSuperClasses] = useState(
+    type === 'class' ? (initialItem?.superClasses ?? []) : []
+  )
+  const [domains, setDomains] = useState(
+    (type === 'objectProperty' || type === 'dataProperty') ? (initialItem?.domains ?? []) : []
+  )
+  const [objRanges, setObjRanges]   = useState(
+    type === 'objectProperty' ? (initialItem?.ranges ?? []) : []
+  )
+  const [dataRanges, setDataRanges] = useState(
+    type === 'dataProperty' ? (initialItem?.ranges ?? []) : []
+  )
+  const [inverseOf, setInverseOf]   = useState(
+    type === 'objectProperty' ? (initialItem?.inverseOf?.[0] ?? '') : ''
+  )
+  const [characteristics, setCharacteristics] = useState(
+    type === 'objectProperty' ? (initialItem?.characteristics ?? []) : []
+  )
+  const [error, setError] = useState('')
+
+  const modalRef = useRef(null)
 
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose() }
@@ -172,8 +196,27 @@ export default function EditModal({ type, ontology, lang, onSubmit, onClose }) {
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
 
+  useEffect(() => {
+    const modal = modalRef.current
+    if (!modal) return
+    const trap = (e) => {
+      if (e.key !== 'Tab') return
+      const focusable = [...modal.querySelectorAll('button:not(:disabled), input:not(:disabled), textarea:not(:disabled), select:not(:disabled)')]
+      if (!focusable.length) return
+      const first = focusable[0]
+      const last  = focusable[focusable.length - 1]
+      if (e.shiftKey) {
+        if (document.activeElement === first) { e.preventDefault(); last.focus() }
+      } else {
+        if (document.activeElement === last) { e.preventDefault(); first.focus() }
+      }
+    }
+    modal.addEventListener('keydown', trap)
+    return () => modal.removeEventListener('keydown', trap)
+  }, [])
+
   const ns = ontology.prefixes[prefix] ?? ''
-  const generatedUri = ns + localName.trim()
+  const generatedUri = customPrefixes.length > 0 ? (ns + localName.trim()) : localName.trim()
 
   const classItems = useMemo(() =>
     Object.values(ontology.classes)
@@ -194,11 +237,6 @@ export default function EditModal({ type, ontology, lang, onSubmit, onClose }) {
 
   const handleSubmit = (e) => {
     e.preventDefault()
-    if (!localName.trim()) { setError('Local name을 입력하세요.'); return }
-    if (!ns)               { setError('Namespace가 없습니다. 접두사를 확인하세요.'); return }
-    if (ontology.classes[generatedUri] || ontology.objectProperties[generatedUri] || ontology.dataProperties[generatedUri]) {
-      setError('이미 존재하는 URI입니다.'); return
-    }
 
     const labels = []
     if (labelEn.trim()) labels.push({ value: labelEn.trim(), lang: 'en' })
@@ -207,6 +245,24 @@ export default function EditModal({ type, ontology, lang, onSubmit, onClose }) {
     const comments = []
     if (commentEn.trim()) comments.push({ value: commentEn.trim(), lang: 'en' })
     if (commentKo.trim()) comments.push({ value: commentKo.trim(), lang: 'ko' })
+
+    if (isEdit) {
+      if (type === 'class') {
+        onSubmit({ labels, comments, superClasses })
+      } else if (type === 'objectProperty') {
+        onSubmit({ labels, comments, domains, ranges: objRanges, inverseOf: inverseOf ? [inverseOf] : [], characteristics })
+      } else if (type === 'dataProperty') {
+        onSubmit({ labels, comments, domains, ranges: dataRanges })
+      }
+      return
+    }
+
+    // Add mode validation
+    if (!localName.trim()) { setError('URI를 입력하세요.'); return }
+    if (customPrefixes.length > 0 && !ns) { setError('Namespace가 없습니다. 접두사를 확인하세요.'); return }
+    if (ontology.classes[generatedUri] || ontology.objectProperties[generatedUri] || ontology.dataProperties[generatedUri]) {
+      setError('이미 존재하는 URI입니다.'); return
+    }
 
     if (type === 'class') {
       onSubmit({ uri: generatedUri, labels, comments, superClasses })
@@ -217,11 +273,15 @@ export default function EditModal({ type, ontology, lang, onSubmit, onClose }) {
     }
   }
 
-  const TITLE = { class: '새 클래스 추가', objectProperty: '새 Object Property 추가', dataProperty: '새 Data Property 추가' }
+  const TITLE = {
+    class:          isEdit ? '클래스 편집'            : '새 클래스 추가',
+    objectProperty: isEdit ? 'Object Property 편집'  : '새 Object Property 추가',
+    dataProperty:   isEdit ? 'Data Property 편집'    : '새 Data Property 추가',
+  }
 
   return (
     <div className="modal-overlay" onMouseDown={onClose}>
-      <div className="modal" onMouseDown={e => e.stopPropagation()}>
+      <div className="modal" ref={modalRef} onMouseDown={e => e.stopPropagation()}>
         <div className="modal-header">
           <h3>{TITLE[type]}</h3>
           <button className="modal-close" onClick={onClose} type="button">×</button>
@@ -232,30 +292,36 @@ export default function EditModal({ type, ontology, lang, onSubmit, onClose }) {
           {/* URI */}
           <div className="form-row">
             <label className="form-label">URI</label>
-            <div className="uri-builder">
-              {customPrefixes.length > 0 ? (
-                <select
-                  className="uri-prefix-select"
-                  value={prefix}
-                  onChange={e => { setPrefix(e.target.value); setError('') }}
-                >
-                  {customPrefixes.map(([p]) => (
-                    <option key={p} value={p}>{p ? `${p}:` : ':'}</option>
-                  ))}
-                </select>
-              ) : (
-                <span className="uri-ns-label">{ns || '(namespace 없음)'}</span>
-              )}
-              <input
-                className="uri-local-input"
-                value={localName}
-                onChange={e => { setLocalName(e.target.value); setError('') }}
-                placeholder="LocalName"
-                autoFocus
-              />
-            </div>
-            {generatedUri && (
-              <div className="uri-preview" title={generatedUri}>{generatedUri}</div>
+            {isEdit ? (
+              <div className="uri-preview" style={{ padding: '8px 10px', background: 'var(--surface3)', borderRadius: 8, fontSize: 12, color: 'var(--text2)' }}>
+                {uri}
+              </div>
+            ) : (
+              <>
+                <div className="uri-builder">
+                  {customPrefixes.length > 0 && (
+                    <select
+                      className="uri-prefix-select"
+                      value={prefix}
+                      onChange={e => { setPrefix(e.target.value); setError('') }}
+                    >
+                      {customPrefixes.map(([p]) => (
+                        <option key={p} value={p}>{p ? `${p}:` : ':'}</option>
+                      ))}
+                    </select>
+                  )}
+                  <input
+                    className="uri-local-input"
+                    value={localName}
+                    onChange={e => { setLocalName(e.target.value); setError('') }}
+                    placeholder={customPrefixes.length > 0 ? 'LocalName' : 'https://example.org/MyClass'}
+                    autoFocus
+                  />
+                </div>
+                {generatedUri && (
+                  <div className="uri-preview" title={generatedUri}>{generatedUri}</div>
+                )}
+              </>
             )}
           </div>
 
@@ -340,7 +406,7 @@ export default function EditModal({ type, ontology, lang, onSubmit, onClose }) {
 
           <div className="modal-footer">
             <button type="button" className="btn btn-ghost" onClick={onClose}>취소</button>
-            <button type="submit" className="btn btn-primary">추가</button>
+            <button type="submit" className="btn btn-primary">{isEdit ? '저장' : '추가'}</button>
           </div>
         </form>
       </div>

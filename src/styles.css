@@ -13,8 +13,12 @@
 
   /* Text */
   --text:      #19213A;
+  --text1:     #19213A;
   --text2:     #566080;
   --text3:     #99A3BE;
+
+  /* Hover */
+  --hover:     #EAEDF8;
 
   /* Accent */
   --accent:    #6366F1;
@@ -719,6 +723,20 @@ body {
   z-index: 10;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
 }
+.legend-toggle-btn {
+  background: none;
+  border: none;
+  color: var(--text3);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0 0 6px;
+  letter-spacing: 0.3px;
+  width: 100%;
+  text-align: left;
+  transition: color 0.12s;
+}
+.legend-toggle-btn:hover { color: var(--text2); }
 .legend-item { display: flex; align-items: center; gap: 10px; color: var(--text2); }
 .legend-dot  { width: 11px; height: 11px; border-radius: 50%; flex-shrink: 0; }
 .legend-line { width: 20px; height: 2.5px; flex-shrink: 0; border-radius: 2px; }
@@ -782,6 +800,27 @@ body {
 }
 
 /* ══════════════════════════════════════════
+   PARSE ERROR
+══════════════════════════════════════════ */
+.parse-error {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #FEF2F2;
+  border: 1px solid #FCA5A5;
+  color: #DC2626;
+  padding: 10px 20px;
+  border-radius: 12px;
+  font-size: 13px;
+  z-index: 9999;
+  max-width: 80vw;
+  word-break: break-all;
+  box-shadow: 0 4px 20px rgba(220, 38, 38, 0.15);
+  font-weight: 500;
+}
+
+/* ══════════════════════════════════════════
    TOAST
 ══════════════════════════════════════════ */
 .toast {
@@ -800,6 +839,36 @@ body {
   box-shadow: 0 6px 20px rgba(25, 33, 58, 0.2);
 }
 .toast.visible { opacity: 1; transform: translateY(0); }
+
+/* ══════════════════════════════════════════
+   UNDO / REDO
+══════════════════════════════════════════ */
+.undo-redo-group {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.undo-redo-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text2);
+  font-size: 14px;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+.undo-redo-btn:hover:not(:disabled) {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+.undo-redo-btn:disabled { opacity: 0.3; cursor: default; }
 
 /* ══════════════════════════════════════════
    EXPORT BUTTON
@@ -828,7 +897,6 @@ body {
    SIDEBAR ADD BUTTON
 ══════════════════════════════════════════ */
 .sidebar-add-btn {
-  flex-shrink: 0;
   background: transparent;
   border: none;
   color: var(--text2);
@@ -1152,6 +1220,21 @@ body {
   border-color: var(--accent);
 }
 .checkbox-label input { display: none; }
+
+/* ══════════════════════════════════════════
+   HEADER — 반응형
+══════════════════════════════════════════ */
+@media (max-width: 1100px) {
+  .stats { display: none; }
+}
+@media (max-width: 860px) {
+  .export-btn { display: none; }
+  .file-name  { max-width: 140px; }
+}
+@media (max-width: 640px) {
+  .file-name          { display: none; }
+  .header-logo-text   { display: none; }
+}
 
 /* ══════════════════════════════════════════
    SIDEBAR — 좁은 너비 반응형 (container query)

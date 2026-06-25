@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from 'react'
+import { useState, useMemo, useRef, useEffect } from 'react'
 import { getDisplayName } from '../utils/ttlParser'
 
 const TABS = [
@@ -7,24 +7,54 @@ const TABS = [
   { id: 'dataProps', label: 'Data Props', addType: 'dataProperty' },
 ]
 
+function getAncestorPath(cls, classes, lang) {
+  const path = []
+  let current = cls
+  const visited = new Set([cls.uri])
+  while (true) {
+    const parentUri = current.superClasses.find(s => classes[s] && !visited.has(s))
+    if (!parentUri) break
+    visited.add(parentUri)
+    const parent = classes[parentUri]
+    path.unshift(getDisplayName(parent, lang))
+    current = parent
+  }
+  return path
+}
+
 function ClassTreeNode({ cls, classes, depth, selectedUri, onSelect, expanded, onToggle, lang }) {
   if (depth > 30) return null
 
-  const childUris = cls.subClasses.filter(uri => classes[uri])
+  const itemRef    = useRef(null)
+  const childUris  = cls.subClasses.filter(uri => classes[uri])
   const hasChildren = childUris.length > 0
-  const isExpanded = expanded.has(cls.uri)
-  const isSelected = selectedUri === cls.uri
+  const isExpanded  = expanded.has(cls.uri)
+  const isSelected  = selectedUri === cls.uri
+
+  useEffect(() => {
+    if (isSelected) itemRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+  }, [isSelected])
 
   return (
     <div>
       <div
+        ref={itemRef}
         className={`list-item${isSelected ? ' selected' : ''}`}
         style={{ paddingLeft: `${4 + depth * 4}px` }}
         onClick={() => onSelect(cls.uri)}
+        onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(cls.uri) } }}
+        tabIndex={0}
+        role="treeitem"
+        aria-selected={isSelected}
         title={cls.uri}
       >
         {hasChildren ? (
-          <span className="tree-toggle" onClick={e => { e.stopPropagation(); onToggle(cls.uri) }}>
+          <span
+            className="tree-toggle"
+            onClick={e => { e.stopPropagation(); onToggle(cls.uri) }}
+            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); e.preventDefault(); onToggle(cls.uri) } }}
+            tabIndex={-1}
+          >
             {isExpanded ? '▾' : '▸'}
           </span>
         ) : (
@@ -67,6 +97,7 @@ export default function Sidebar({ ontology, selectedItem, onSelectClass, onSelec
 
   const handleTabClick = (tabId) => {
     setActiveTab(tabId)
+    setQuery('')
     requestAnimationFrame(() => {
       tabListRef.current?.querySelector(`[data-tab="${tabId}"]`)
         ?.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'nearest' })
@@ -106,6 +137,30 @@ export default function Sidebar({ ontology, selectedItem, onSelectClass, onSelec
       .filter(p => !q || getDisplayName(p, lang).toLowerCase().includes(q) || p.uri.toLowerCase().includes(q))
       .sort((a, b) => getDisplayName(a, lang).localeCompare(getDisplayName(b, lang)))
   }, [ontology, activeTab, q, lang])
+
+  // 선택된 클래스가 변경되면 트리에서 조상 노드를 자동 펼침
+  useEffect(() => {
+    if (!ontology || !selectedItem || selectedItem.type !== 'class') return
+    const cls = ontology.classes[selectedItem.uri]
+    if (!cls) return
+    const ancestors = new Set()
+    let current = cls
+    const visited = new Set([cls.uri])
+    while (true) {
+      const parentUri = current.superClasses.find(s => ontology.classes[s] && !visited.has(s))
+      if (!parentUri) break
+      visited.add(parentUri)
+      ancestors.add(parentUri)
+      current = ontology.classes[parentUri]
+    }
+    if (ancestors.size > 0) {
+      setExpanded(prev => {
+        const next = new Set(prev)
+        ancestors.forEach(uri => next.add(uri))
+        return next
+      })
+    }
+  }, [selectedItem?.uri, selectedItem?.type]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const selectedUri  = selectedItem?.uri
   const selectedType = selectedItem?.type
@@ -155,19 +210,29 @@ export default function Sidebar({ ontology, selectedItem, onSelectClass, onSelec
           q
             ? flatFiltered.length === 0
               ? <div className="sidebar-empty">검색 결과 없음</div>
-              : flatFiltered.map(cls => (
+              : flatFiltered.map(cls => {
+                const path = getAncestorPath(cls, ontology.classes, lang)
+                return (
                   <div
                     key={cls.uri}
                     className={`list-item${selectedUri === cls.uri ? ' selected' : ''}`}
-                    style={{ paddingLeft: 6 }}
+                    style={{ paddingLeft: 6, alignItems: 'flex-start', paddingTop: 5, paddingBottom: 5 }}
                     onClick={() => onSelectClass(cls.uri)}
                     title={cls.uri}
                   >
-                    <span className="tree-toggle-placeholder" />
-                    <span className="tree-class-dot" />
-                    <span className="list-item-label">{getDisplayName(cls, lang)}</span>
+                    <span className="tree-toggle-placeholder" style={{ marginTop: 2 }} />
+                    <span className="tree-class-dot" style={{ flexShrink: 0, marginTop: 5 }} />
+                    <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
+                      <span className="list-item-label" style={{ display: 'block' }}>{getDisplayName(cls, lang)}</span>
+                      {path.length > 0 && (
+                        <span style={{ display: 'block', fontSize: 10, color: 'var(--text3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {path.join(' › ')}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                ))
+                )
+              })
             : rootClasses.length === 0
               ? <div className="sidebar-empty">클래스 없음</div>
               : rootClasses.map(cls => (
@@ -194,6 +259,8 @@ export default function Sidebar({ ontology, selectedItem, onSelectClass, onSelec
                   className={`list-item${selectedType === 'objectProperty' && selectedUri === prop.uri ? ' selected' : ''}`}
                   style={{ paddingLeft: 8 }}
                   onClick={() => onSelectProperty(prop.uri, 'objectProperty')}
+                  onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelectProperty(prop.uri, 'objectProperty') } }}
+                  tabIndex={0}
                   title={prop.uri}
                 >
                   <span className="list-item-prop-icon" style={{ color: 'var(--obj-fg)' }}>→</span>
@@ -211,6 +278,8 @@ export default function Sidebar({ ontology, selectedItem, onSelectClass, onSelec
                   className={`list-item${selectedType === 'dataProperty' && selectedUri === prop.uri ? ' selected' : ''}`}
                   style={{ paddingLeft: 8 }}
                   onClick={() => onSelectProperty(prop.uri, 'dataProperty')}
+                  onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelectProperty(prop.uri, 'dataProperty') } }}
+                  tabIndex={0}
                   title={prop.uri}
                 >
                   <span className="list-item-prop-icon" style={{ color: 'var(--data-fg)' }}>#</span>

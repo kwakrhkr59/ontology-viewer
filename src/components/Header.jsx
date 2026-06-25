@@ -14,12 +14,17 @@ function GraphIcon() {
   )
 }
 
-const KNOWN_LANGS = [
-  { code: 'en', label: 'EN' },
-  { code: 'ko', label: 'KO' },
-]
+function sortedLangCodes(langs) {
+  return [...langs].sort((a, b) => {
+    if (a === 'en') return -1
+    if (b === 'en') return 1
+    if (a === 'ko') return -1
+    if (b === 'ko') return 1
+    return a.localeCompare(b)
+  })
+}
 
-export default function Header({ ontology, fileName, onFileLoad, lang, onLangChange, availableLangs, onExport }) {
+export default function Header({ ontology, fileName, onFileLoad, lang, onLangChange, availableLangs, onExport, canUndo, canRedo, onUndo, onRedo }) {
   const inputRef = useRef(null)
 
   const handleFile = (e) => {
@@ -64,15 +69,22 @@ export default function Header({ ontology, fileName, onFileLoad, lang, onLangCha
 
       {fileName && <span className="file-name">{fileName}</span>}
 
+      {ontology && (
+        <div className="undo-redo-group">
+          <button className="undo-redo-btn" onClick={onUndo} disabled={!canUndo} title="실행 취소 (Ctrl+Z)">↩</button>
+          <button className="undo-redo-btn" onClick={onRedo} disabled={!canRedo} title="다시 실행 (Ctrl+Y)">↪</button>
+        </div>
+      )}
+
       {availableLangs && availableLangs.size > 1 && (
         <div className="lang-toggle" title="언어 전환">
-          {KNOWN_LANGS.filter(l => availableLangs.has(l.code)).map(l => (
+          {sortedLangCodes(availableLangs).map(code => (
             <button
-              key={l.code}
-              className={`lang-btn${lang === l.code ? ' lang-btn--active' : ''}`}
-              onClick={() => onLangChange(l.code)}
+              key={code}
+              className={`lang-btn${lang === code ? ' lang-btn--active' : ''}`}
+              onClick={() => onLangChange(code)}
             >
-              {l.label}
+              {code.toUpperCase()}
             </button>
           ))}
         </div>

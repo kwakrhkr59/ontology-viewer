@@ -112,7 +112,7 @@ function DeleteButton({ onDelete }) {
   )
 }
 
-export default function DetailPanel({ ontology, selectedItem, onSelectClass, onSelectProperty, showToast, lang, onDelete }) {
+export default function DetailPanel({ ontology, selectedItem, onSelectClass, onSelectProperty, showToast, lang, onDelete, onEdit }) {
   if (!ontology || !selectedItem) {
     return (
       <div className="detail-panel">
@@ -150,7 +150,10 @@ export default function DetailPanel({ ontology, selectedItem, onSelectClass, onS
               <h2>{label}</h2>
               <UriRow uri={uri} showToast={showToast} />
             </div>
-            <DeleteButton onDelete={() => onDelete(uri, 'class')} />
+            <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+              <button className="btn btn-ghost btn-sm" onClick={() => onEdit('class', uri)}>편집</button>
+              <DeleteButton key={uri} onDelete={() => onDelete(uri, 'class')} />
+            </div>
           </div>
 
           {clsComments.length > 0 && (
@@ -254,7 +257,10 @@ export default function DetailPanel({ ontology, selectedItem, onSelectClass, onS
             <h2>{label}</h2>
             <UriRow uri={uri} showToast={showToast} />
           </div>
-          <DeleteButton onDelete={() => onDelete(uri, type)} />
+          <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+            <button className="btn btn-ghost btn-sm" onClick={() => onEdit(type, uri)}>편집</button>
+            <DeleteButton key={uri} onDelete={() => onDelete(uri, type)} />
+          </div>
         </div>
 
         <div>
@@ -272,7 +278,7 @@ export default function DetailPanel({ ontology, selectedItem, onSelectClass, onS
         )}
 
         {prop.domains.length > 0 && (
-          <Section title="Domain">
+          <Section title="도메인 (Domain)">
             <div className="chip-list">
               {prop.domains.map(u => (
                 <ClassChip key={u} uri={u} ontology={ontology} onSelectClass={onSelectClass} lang={lang} />
@@ -282,7 +288,7 @@ export default function DetailPanel({ ontology, selectedItem, onSelectClass, onS
         )}
 
         {prop.ranges.length > 0 && (
-          <Section title="Range">
+          <Section title="범위 (Range)">
             <div className="chip-list">
               {prop.ranges.map(u => (
                 ontology.classes[u]
@@ -304,7 +310,7 @@ export default function DetailPanel({ ontology, selectedItem, onSelectClass, onS
         )}
 
         {isObj && prop.inverseOf.length > 0 && (
-          <Section title="InverseOf">
+          <Section title="역관계 (InverseOf)">
             <div className="chip-list">
               {prop.inverseOf.map(u => (
                 <span key={u} className="chip chip-range" title={u}>{shorten(u, pfx)}</span>

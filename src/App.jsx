@@ -14,7 +14,10 @@ function cloneOntology(ont) {
 }
 
 export default function App() {
-  const [ontology, setOntology]         = useState(null)
+  const [ontState, setOntState] = useState({ past: [], present: null, future: [] })
+  const ontology = ontState.present
+  const canUndo  = ontState.past.length > 0
+  const canRedo  = ontState.future.length > 0
   const [fileName, setFileName]         = useState(null)
   const [selectedItem, setSelectedItem] = useState(null)
   const [parseError, setParseError]     = useState(null)
@@ -23,7 +26,7 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen]   = useState(true)
   const [detailOpen, setDetailOpen]     = useState(true)
   const [isDragging, setIsDragging]     = useState(false)
-  const [editModal, setEditModal]       = useState(null) // 'class' | 'objectProperty' | 'dataProperty' | null
+  const [editModal, setEditModal]       = useState(null) // { mode: 'add'|'edit', type, uri? } | null
   const [sidebarWidth, setSidebarWidth] = useState(260)
   const [detailWidth, setDetailWidth]   = useState(340)
   const [isResizing, setIsResizing]     = useState(false)
@@ -37,6 +40,62 @@ export default function App() {
     setToast({ msg, visible: true })
     toastTimer.current = setTimeout(() => setToast(t => ({ ...t, visible: false })), 2000)
   }, [])
+
+  // 파일 로드 시 히스토리 초기화
+  const resetOntology = useCallback((ont) => {
+    setOntState({ past: [], present: ont, future: [] })
+  }, [])
+
+  // 뮤테이션 시 히스토리 자동 저장
+  const setOntology = useCallback((updater) => {
+    setOntState(prev => {
+      const newPresent = typeof updater === 'function' ? updater(prev.present) : updater
+      return {
+        past: [...prev.past.slice(-19), prev.present].filter(p => p !== null),
+        present: newPresent,
+        future: [],
+      }
+    })
+  }, [])
+
+  const undo = useCallback(() => {
+    setOntState(prev => {
+      if (!prev.past.length) return prev
+      return {
+        past: prev.past.slice(0, -1),
+        present: prev.past[prev.past.length - 1],
+        future: [prev.present, ...prev.future].slice(0, 20),
+      }
+    })
+    setSelectedItem(null)
+    showToast('실행 취소')
+  }, [showToast])
+
+  const redo = useCallback(() => {
+    setOntState(prev => {
+      if (!prev.future.length) return prev
+      return {
+        past: [...prev.past, prev.present],
+        present: prev.future[0],
+        future: prev.future.slice(1),
+      }
+    })
+    setSelectedItem(null)
+    showToast('다시 실행')
+  }, [showToast])
+
+  useEffect(() => {
+    const onKey = (e) => {
+      const ctrl = e.ctrlKey || e.metaKey
+      if (!ctrl) return
+      const tag = document.activeElement?.tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return
+      if (!e.shiftKey && e.key === 'z') { e.preventDefault(); undo() }
+      if (e.key === 'y' || (e.shiftKey && e.key === 'z')) { e.preventDefault(); redo() }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [undo, redo])
 
   useEffect(() => { sidebarWidthRef.current = sidebarWidth }, [sidebarWidth])
   useEffect(() => { detailWidthRef.current  = detailWidth  }, [detailWidth])
@@ -70,20 +129,19 @@ export default function App() {
   const handleFileLoad = useCallback((name, text) => {
     try {
       const parsed = parseTTLText(text)
-      setOntology(parsed)
+      resetOntology(parsed)
       setFileName(name)
       setSelectedItem(null)
       setParseError(null)
-      // Auto-select language: prefer 'en', then first available, then keep current
       const langs = getAvailableLangs(parsed)
       setLang(langs.has('en') ? 'en' : langs.has('ko') ? 'ko' : [...langs][0] || 'en')
       showToast(`파싱 완료 — 클래스 ${Object.keys(parsed.classes).length}개`)
     } catch (err) {
       console.error('[OntologyViewer] parse error:', err)
       setParseError(err.message)
-      setOntology(null)
+      resetOntology(null)
     }
-  }, [showToast])
+  }, [showToast, resetOntology])
 
   const loadFile = useCallback((file) => {
     if (!file) return
@@ -231,15 +289,96 @@ export default function App() {
     showToast('삭제됨')
   }, [showToast])
 
+  const updateClass = useCallback((uri, data) => {
+    setOntology(prev => {
+      const next = cloneOntology(prev)
+      const cls = next.classes[uri]
+      if (!cls) return prev
+      cls.labels   = data.labels
+      cls.comments = data.comments
+      cls.superClasses.forEach(sup => {
+        if (next.classes[sup]) next.classes[sup].subClasses = next.classes[sup].subClasses.filter(u => u !== uri)
+      })
+      data.superClasses.forEach(sup => {
+        if (next.classes[sup] && !next.classes[sup].subClasses.includes(uri)) next.classes[sup].subClasses.push(uri)
+      })
+      cls.superClasses = data.superClasses
+      return next
+    })
+    setEditModal(null)
+    showToast('클래스 수정됨')
+  }, [showToast])
+
+  const updateObjectProperty = useCallback((uri, data) => {
+    setOntology(prev => {
+      const next = cloneOntology(prev)
+      const prop = next.objectProperties[uri]
+      if (!prop) return prev
+      prop.labels          = data.labels
+      prop.comments        = data.comments
+      prop.inverseOf       = data.inverseOf
+      prop.characteristics = data.characteristics
+      prop.domains.forEach(d => {
+        if (next.classes[d]) next.classes[d].outObjProps = next.classes[d].outObjProps.filter(u => u !== uri)
+      })
+      data.domains.forEach(d => {
+        if (next.classes[d] && !next.classes[d].outObjProps.includes(uri)) next.classes[d].outObjProps.push(uri)
+      })
+      prop.domains = data.domains
+      prop.ranges.forEach(r => {
+        if (next.classes[r]) next.classes[r].inObjProps = next.classes[r].inObjProps.filter(u => u !== uri)
+      })
+      data.ranges.forEach(r => {
+        if (next.classes[r] && !next.classes[r].inObjProps.includes(uri)) next.classes[r].inObjProps.push(uri)
+      })
+      prop.ranges = data.ranges
+      return next
+    })
+    setEditModal(null)
+    showToast('Object Property 수정됨')
+  }, [showToast])
+
+  const updateDataProperty = useCallback((uri, data) => {
+    setOntology(prev => {
+      const next = cloneOntology(prev)
+      const prop = next.dataProperties[uri]
+      if (!prop) return prev
+      prop.labels   = data.labels
+      prop.comments = data.comments
+      prop.domains.forEach(d => {
+        if (next.classes[d]) next.classes[d].dataProps = next.classes[d].dataProps.filter(u => u !== uri)
+      })
+      data.domains.forEach(d => {
+        if (next.classes[d] && !next.classes[d].dataProps.includes(uri)) next.classes[d].dataProps.push(uri)
+      })
+      prop.domains = data.domains
+      prop.ranges  = data.ranges
+      return next
+    })
+    setEditModal(null)
+    showToast('Data Property 수정됨')
+  }, [showToast])
+
   const handleAdd = useCallback((type) => {
-    setEditModal(type)
+    setEditModal({ mode: 'add', type })
+  }, [])
+
+  const handleEditItem = useCallback((type, uri) => {
+    setEditModal({ mode: 'edit', type, uri })
   }, [])
 
   const handleModalSubmit = useCallback((data) => {
-    if (editModal === 'class')          addClass(data)
-    else if (editModal === 'objectProperty') addObjectProperty(data)
-    else if (editModal === 'dataProperty')   addDataProperty(data)
-  }, [editModal, addClass, addObjectProperty, addDataProperty])
+    const { mode, type, uri } = editModal
+    if (mode === 'edit') {
+      if (type === 'class')               updateClass(uri, data)
+      else if (type === 'objectProperty') updateObjectProperty(uri, data)
+      else if (type === 'dataProperty')   updateDataProperty(uri, data)
+    } else {
+      if (type === 'class')               addClass(data)
+      else if (type === 'objectProperty') addObjectProperty(data)
+      else if (type === 'dataProperty')   addDataProperty(data)
+    }
+  }, [editModal, addClass, addObjectProperty, addDataProperty, updateClass, updateObjectProperty, updateDataProperty])
 
   // ── Export ────────────────────────────────────────────────
   const exportTTL = useCallback(() => {
@@ -298,6 +437,10 @@ export default function App() {
         onLangChange={setLang}
         availableLangs={availableLangs}
         onExport={exportTTL}
+        canUndo={canUndo}
+        canRedo={canRedo}
+        onUndo={undo}
+        onRedo={redo}
       />
 
       <div className={layoutClassName} style={layoutStyle}>
@@ -332,6 +475,7 @@ export default function App() {
           showToast={showToast}
           lang={lang}
           onDelete={deleteItem}
+          onEdit={handleEditItem}
         />
 
         <div
@@ -352,6 +496,7 @@ export default function App() {
           ontology={ontology}
           selectedItem={selectedItem}
           onSelectClass={handleSelectClass}
+          onSelectProperty={handleSelectProperty}
           showToast={showToast}
           lang={lang}
         />
@@ -359,7 +504,9 @@ export default function App() {
 
       {editModal && ontology && (
         <EditModal
-          type={editModal}
+          mode={editModal.mode}
+          type={editModal.type}
+          uri={editModal.uri}
           ontology={ontology}
           lang={lang}
           onSubmit={handleModalSubmit}
@@ -382,16 +529,7 @@ export default function App() {
       )}
 
       {parseError && (
-        <div style={{
-          position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)',
-          background: '#FEF2F2', border: '1px solid #FCA5A5', color: '#DC2626',
-          padding: '10px 20px', borderRadius: 12, fontSize: 13, zIndex: 9999,
-          maxWidth: '80vw', wordBreak: 'break-all',
-          boxShadow: '0 4px 20px rgba(220, 38, 38, 0.15)',
-          fontWeight: 500,
-        }}>
-          ⚠️ {parseError}
-        </div>
+        <div className="parse-error">⚠️ {parseError}</div>
       )}
 
       <div className={`toast${toast.visible ? ' visible' : ''}`}>{toast.msg}</div>

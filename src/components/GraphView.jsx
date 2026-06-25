@@ -18,8 +18,9 @@ const PALETTE = [
 ]
 
 const COLOR_MODES = ['none', 'root', 'tree']
-const COLOR_MODE_LABELS = { none: '색상 없음', root: '루트 강조', tree: '트리 색상' }
+const COLOR_MODE_LABELS = { none: '색상 · 없음', root: '색상 · 루트', tree: '색상 · 트리' }
 const DEFAULT_STYLE = { bg: '#FFFFFF', border: '#10B981' }
+const FULL_GRAPH_WARN_THRESHOLD = 150
 
 const CY_STYLE = [
   {
@@ -104,7 +105,7 @@ function buildColorMap(ont, mode) {
     return { map, roots }
   }
 
-  // tree: BFS from each root, first assignment wins (multi-inheritance → first root)
+  // tree: BFS from each root, first assignment wins
   const map = new Map()
   roots.forEach((root, i) => {
     const color = PALETTE[i % PALETTE.length]
@@ -122,18 +123,23 @@ function buildColorMap(ont, mode) {
   return { map, roots }
 }
 
-export default function GraphView({ ontology, selectedItem, onSelectClass, showToast, lang }) {
-  const containerRef  = useRef(null)
-  const cyRef         = useRef(null)
-  const layoutIdx     = useRef(0)
-  const ontologyRef   = useRef(ontology)
-  const langRef       = useRef(lang)
-  const currentView   = useRef(null) // { type: 'class'|'prop'|'full', uri?, propType? }
+export default function GraphView({ ontology, selectedItem, onSelectClass, onSelectProperty, showToast, lang }) {
+  const containerRef        = useRef(null)
+  const cyRef               = useRef(null)
+  const layoutIdx           = useRef(0)
+  const ontologyRef         = useRef(ontology)
+  const langRef             = useRef(lang)
+  const currentView         = useRef(null)
+  const onSelectPropertyRef = useRef(onSelectProperty)
 
-  const [colorMode, setColorMode] = useState('none')
+  const [colorMode, setColorMode]                       = useState('none')
+  const [curLayout, setCurLayout]                       = useState(LAYOUTS[0])
+  const [awaitingFullGraphConfirm, setAwaitingFullGraphConfirm] = useState(false)
+  const [legendOpen, setLegendOpen]                     = useState(true)
 
   useEffect(() => { ontologyRef.current = ontology }, [ontology])
   useEffect(() => { langRef.current = lang }, [lang])
+  useEffect(() => { onSelectPropertyRef.current = onSelectProperty }, [onSelectProperty])
 
   const { map: colorMap, roots } = useMemo(
     () => buildColorMap(ontology, colorMode),
@@ -159,6 +165,14 @@ export default function GraphView({ ontology, selectedItem, onSelectClass, showT
     cy.on('tap', 'node', e => {
       const id = e.target.id()
       if (ontologyRef.current?.classes[id]) onSelectClass(id)
+    })
+
+    cy.on('tap', 'edge', e => {
+      if (e.target.hasClass('subclass')) return
+      const propUri = e.target.data('propUri')
+      if (propUri && ontologyRef.current?.objectProperties[propUri]) {
+        onSelectPropertyRef.current(propUri, 'objectProperty')
+      }
     })
 
     const ro = new ResizeObserver(() => { cy.resize(); cy.fit(undefined, 40) })
@@ -198,9 +212,10 @@ export default function GraphView({ ontology, selectedItem, onSelectClass, showT
   useEffect(() => {
     cyRef.current?.elements().remove()
     currentView.current = null
+    setAwaitingFullGraphConfirm(false)
   }, [ontology])
 
-  // ── 노드 데이터 생성 (colorMap 반영) ──────────────────────
+  // ── 노드 데이터 생성 ──────────────────────────────────────
   function makeNodeData(u, ont) {
     const c     = ont.classes[u]
     const color = colorMapRef.current.get(u) ?? DEFAULT_STYLE
@@ -252,10 +267,10 @@ export default function GraphView({ ontology, selectedItem, onSelectClass, showT
       const label = getDisplayName(p, langRef.current)
       p.ranges.forEach(r => {
         addNode(r)
-        const eid = `op_${pUri}_${uri}_${r}`
+        const eid = `op_out_${pUri}_${uri}_${r}`
         if (!addedEdges.has(eid)) {
           addedEdges.add(eid)
-          edges.push({ data: { id: eid, source: uri, target: r, label } })
+          edges.push({ data: { id: eid, source: uri, target: r, label, propUri: pUri } })
         }
       })
     })
@@ -266,10 +281,10 @@ export default function GraphView({ ontology, selectedItem, onSelectClass, showT
       const label = getDisplayName(p, langRef.current)
       p.domains.forEach(d => {
         addNode(d)
-        const eid = `op_${pUri}_${d}_${uri}`
+        const eid = `op_in_${pUri}_${d}_${uri}`
         if (!addedEdges.has(eid)) {
           addedEdges.add(eid)
-          edges.push({ data: { id: eid, source: d, target: uri, label } })
+          edges.push({ data: { id: eid, source: d, target: uri, label, propUri: pUri } })
         }
       })
     })
@@ -296,9 +311,11 @@ export default function GraphView({ ontology, selectedItem, onSelectClass, showT
         nodes.set(r, { data: makeNodeData(r, ont) })
     })
     prop.domains.forEach(d =>
-      prop.ranges.forEach(r =>
-        edges.push({ data: { id: `${uri}_${d}_${r}`, source: d, target: r, label } })
-      )
+      prop.ranges.forEach(r => {
+        const edgeData = { id: `${uri}_${d}_${r}`, source: d, target: r, label }
+        if (type === 'objectProperty') edgeData.propUri = uri
+        edges.push({ data: edgeData })
+      })
     )
 
     applyGraph(cy, [...nodes.values(), ...edges])
@@ -331,7 +348,7 @@ export default function GraphView({ ontology, selectedItem, onSelectClass, showT
         const eid = `op_${p.uri}_${d}_${r}`
         if (!addedEdges.has(eid)) {
           addedEdges.add(eid)
-          edges.push({ data: { id: eid, source: d, target: r, label: getDisplayName(p, langRef.current) } })
+          edges.push({ data: { id: eid, source: d, target: r, label: getDisplayName(p, langRef.current), propUri: p.uri } })
         }
       }))
     })
@@ -372,18 +389,29 @@ export default function GraphView({ ontology, selectedItem, onSelectClass, showT
 
   const handleToggleLayout = () => {
     layoutIdx.current = (layoutIdx.current + 1) % LAYOUTS.length
+    const name = LAYOUTS[layoutIdx.current]
+    setCurLayout(name)
     if (cyRef.current?.elements().length) runLayout(cyRef.current)
-    showToast('레이아웃: ' + LAYOUTS[layoutIdx.current])
+    showToast('레이아웃: ' + name)
   }
 
   const handleFullGraph = useCallback(() => {
     const cy  = cyRef.current
     const ont = ontologyRef.current
     if (!cy || !ont) return
+
+    const nodeCount = Object.keys(ont.classes).length
+    if (nodeCount > FULL_GRAPH_WARN_THRESHOLD && !awaitingFullGraphConfirm) {
+      setAwaitingFullGraphConfirm(true)
+      showToast(`클래스 ${nodeCount}개 — 재클릭하면 전체 그래프 표시`)
+      return
+    }
+
+    setAwaitingFullGraphConfirm(false)
     currentView.current = { type: 'full' }
     buildFullGraph(cy, ont)
     showToast('전체 그래프 표시 중')
-  }, [showToast]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [showToast, awaitingFullGraphConfirm]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleColorModeToggle = () => {
     setColorMode(prev => {
@@ -393,7 +421,6 @@ export default function GraphView({ ontology, selectedItem, onSelectClass, showT
     })
   }
 
-  // 범례: root/tree 모드일 때 루트별 색상 표시 (최대 6개)
   const treeLegend = colorMode !== 'none' && roots.length > 0
     ? roots.slice(0, 6).map((root, i) => ({
         label: getDisplayName(root, lang),
@@ -424,9 +451,14 @@ export default function GraphView({ ontology, selectedItem, onSelectClass, showT
 
       <div className="graph-controls">
         <button className="graph-btn" onClick={handleFit}>전체 보기</button>
-        <button className="graph-btn" onClick={handleToggleLayout}>레이아웃 변경</button>
+        <button className="graph-btn" onClick={handleToggleLayout}>레이아웃: {curLayout}</button>
         {ontology && (
-          <button className="graph-btn" onClick={handleFullGraph}>전체 그래프</button>
+          <button
+            className={`graph-btn${awaitingFullGraphConfirm ? ' graph-btn--active' : ''}`}
+            onClick={handleFullGraph}
+          >
+            {awaitingFullGraphConfirm ? '재클릭하여 확인' : '전체 그래프'}
+          </button>
         )}
         {ontology && (
           <button
@@ -439,7 +471,10 @@ export default function GraphView({ ontology, selectedItem, onSelectClass, showT
       </div>
 
       <div className="graph-legend">
-        {treeLegend ? (
+        <button className="legend-toggle-btn" onClick={() => setLegendOpen(v => !v)}>
+          {legendOpen ? '▾ 범례' : '▸ 범례'}
+        </button>
+        {legendOpen && treeLegend ? (
           <>
             {treeLegend.map(({ label, color }) => (
               <div className="legend-item" key={label}>
@@ -451,14 +486,14 @@ export default function GraphView({ ontology, selectedItem, onSelectClass, showT
               <div className="legend-item" style={{ color: '#99A3BE' }}>+{roots.length - 6}개 루트</div>
             )}
           </>
-        ) : (
+        ) : legendOpen ? (
           <>
             <div className="legend-item"><div className="legend-dot" style={{ background: '#6366F1', border: '2px solid #6366F1' }} />선택 클래스</div>
             <div className="legend-item"><div className="legend-dot" style={{ background: '#fff', border: '2px solid #10B981' }} />연결 클래스</div>
             <div className="legend-item"><div className="legend-line" style={{ background: '#F59E0B' }} />Object Property</div>
             <div className="legend-item"><div className="legend-dashed" style={{ borderColor: '#CDD4ED' }} />SubClassOf</div>
           </>
-        )}
+        ) : null}
       </div>
     </div>
   )
