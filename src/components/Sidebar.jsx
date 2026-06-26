@@ -90,10 +90,21 @@ function ClassTreeNode({ cls, classes, depth, selectedUri, onSelect, expanded, o
 }
 
 export default function Sidebar({ ontology, selectedItem, onSelectClass, onSelectProperty, lang, onAdd }) {
-  const [activeTab, setActiveTab] = useState('classes')
-  const [query, setQuery]         = useState('')
-  const [expanded, setExpanded]   = useState(new Set())
+  const [activeTab, setActiveTab]     = useState('classes')
+  const [query, setQuery]             = useState('')
+  const [expanded, setExpanded]       = useState(new Set())
+  const [tabsOverflow, setTabsOverflow] = useState(false)
   const tabListRef = useRef(null)
+
+  useEffect(() => {
+    const el = tabListRef.current
+    if (!el) return
+    const check = () => setTabsOverflow(el.scrollWidth > el.clientWidth)
+    check()
+    const ro = new ResizeObserver(check)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
 
   const handleTabClick = (tabId) => {
     setActiveTab(tabId)
@@ -168,7 +179,7 @@ export default function Sidebar({ ontology, selectedItem, onSelectClass, onSelec
 
   return (
     <div className="sidebar">
-      <div className="sidebar-tabs">
+      <div className={`sidebar-tabs${tabsOverflow ? ' tabs-overflowing' : ''}`}>
         <div className="sidebar-tab-list" ref={tabListRef}>
           {TABS.map(tab => (
             <div

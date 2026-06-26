@@ -292,10 +292,23 @@ body {
 .sidebar-tabs {
   display: flex;
   align-items: stretch;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--border2);
   flex-shrink: 0;
   padding: 12px 8px 0 12px;
   gap: 4px;
+  position: relative;
+}
+/* 탭이 가로로 잘릴 때 오른쪽에 페이드 인디케이터 표시 */
+.tabs-overflowing::after {
+  content: '';
+  position: absolute;
+  right: 36px;
+  top: 0;
+  bottom: 1px;
+  width: 28px;
+  background: linear-gradient(to right, transparent, var(--surface));
+  pointer-events: none;
+  z-index: 2;
 }
 .sidebar-tab-list {
   display: flex;
@@ -317,8 +330,7 @@ body {
   color: var(--text3);
   cursor: pointer;
   border-radius: 8px 8px 0 0;
-  border-bottom: 2px solid transparent;
-  transition: color 0.15s, background 0.15s, border-color 0.15s;
+  transition: color 0.15s, background 0.15s, box-shadow 0.15s;
   white-space: nowrap;
   letter-spacing: 0.2px;
   text-transform: uppercase;
@@ -326,14 +338,17 @@ body {
 .sidebar-tab:hover { color: var(--text2); background: var(--surface2); }
 .sidebar-tab.active {
   color: var(--accent);
-  border-color: var(--accent);
   background: rgba(99, 102, 241, 0.05);
+  box-shadow: inset 0 -2px 0 var(--accent);
 }
 
 .sidebar-search {
   padding: 12px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--border2);
   flex-shrink: 0;
+  position: relative;
+  z-index: 1;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
 }
 .sidebar-search input {
   width: 100%;
@@ -431,7 +446,7 @@ body {
 
 .tree-children {
   border-left: 2px solid var(--border);
-  margin-left: 20px;
+  margin-left: 14px;
 }
 
 .list-item-prop-icon {
@@ -444,7 +459,7 @@ body {
 }
 
 .sidebar-empty {
-  padding: 48px 20px;
+  padding: clamp(20px, 8vh, 48px) 20px;
   color: var(--text3);
   font-size: 12px;
   text-align: center;
@@ -1239,10 +1254,27 @@ body {
 /* ══════════════════════════════════════════
    SIDEBAR — 좁은 너비 반응형 (container query)
 ══════════════════════════════════════════ */
+@container (max-width: 240px) {
+  .sidebar-search input { padding: 6px 10px; font-size: 12px; }
+}
 @container (max-width: 210px) {
   .sidebar-tabs    { padding: 8px 4px 0 6px; gap: 2px; }
   .sidebar-search  { padding: 6px 8px; }
   .sidebar-search input { padding: 5px 8px; font-size: 11px; }
   .list-item       { margin: 1px 4px; }
   .list-item-count { padding: 1px 5px; }
+  .tree-children   { margin-left: 8px; }
+}
+
+/* ══════════════════════════════════════════
+   SIDEBAR — 낮은 높이 반응형
+══════════════════════════════════════════ */
+@media (max-height: 480px) {
+  .sidebar-tabs   { padding-top: 6px; }
+  .sidebar-search { padding: 7px 12px; }
+  .sidebar-empty  { padding: clamp(12px, 5vh, 28px) 20px; }
+}
+@media (max-height: 320px) {
+  .sidebar-tabs   { padding-top: 4px; }
+  .sidebar-search { padding: 5px 12px; }
 }

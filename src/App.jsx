@@ -102,22 +102,24 @@ export default function App() {
 
   const startResize = useCallback((which, e) => {
     e.preventDefault()
-    const startX   = e.clientX
-    const startW   = which === 'sidebar' ? sidebarWidthRef.current : detailWidthRef.current
+    const startX     = e.clientX
+    const startW     = which === 'sidebar' ? sidebarWidthRef.current : detailWidthRef.current
     const [MIN, MAX] = which === 'sidebar' ? [180, 520] : [220, 600]
+    const SNAP_W     = which === 'sidebar' ? 120 : 150  // 드래그를 이 값 미만까지 당겼을 때만 닫힘
     const DEFAULT_W  = which === 'sidebar' ? 260 : 340
     setIsResizing(true)
-    let lastW = startW
+    let lastRawW = startW  // 클램프 전 원시 너비 추적
     const onMove = ev => {
-      const w = Math.max(MIN, Math.min(MAX, startW + ev.clientX - startX))
-      lastW = w
+      const rawW = startW + ev.clientX - startX
+      lastRawW = rawW
+      const w = Math.max(MIN, Math.min(MAX, rawW))
       which === 'sidebar' ? setSidebarWidth(w) : setDetailWidth(w)
     }
     const onUp = () => {
       document.removeEventListener('mousemove', onMove)
       document.removeEventListener('mouseup', onUp)
       setIsResizing(false)
-      if (lastW <= MIN) {
+      if (lastRawW < SNAP_W) {
         if (which === 'sidebar') { setSidebarOpen(false); setSidebarWidth(DEFAULT_W) }
         else                     { setDetailOpen(false);  setDetailWidth(DEFAULT_W)  }
       }
