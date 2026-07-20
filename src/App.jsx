@@ -9,6 +9,9 @@ import EditModal from './components/EditModal'
 
 const ACCEPTED_EXTS = ['ttl', 'owl', 'n3']
 
+const SIDEBAR_MIN = 180
+const DETAIL_MIN  = 220
+
 function cloneOntology(ont) {
   return JSON.parse(JSON.stringify(ont))
 }
@@ -104,15 +107,19 @@ export default function App() {
     e.preventDefault()
     const startX     = e.clientX
     const startW     = which === 'sidebar' ? sidebarWidthRef.current : detailWidthRef.current
-    const [MIN, MAX] = which === 'sidebar' ? [180, 520] : [220, 600]
+    const [MIN, MAX] = which === 'sidebar' ? [SIDEBAR_MIN, 520] : [DETAIL_MIN, 600]
     const SNAP_W     = which === 'sidebar' ? 120 : 150  // 드래그를 이 값 미만까지 당겼을 때만 닫힘
+    const COLLAPSE_FLOOR = 48  // 닫힘 존에서도 계속 좁아지는 모습을 보여줄 하한선
     const DEFAULT_W  = which === 'sidebar' ? 260 : 340
     setIsResizing(true)
     let lastRawW = startW  // 클램프 전 원시 너비 추적
     const onMove = ev => {
       const rawW = startW + ev.clientX - startX
       lastRawW = rawW
-      const w = Math.max(MIN, Math.min(MAX, rawW))
+      // MIN 밑으로 당기면 그 자리에서 멈춘 것처럼 보이다가 놓는 순간 갑자기 닫혀버리면
+      // 사용자가 놀라므로, 닫힘 판정 구간(SNAP_W)에 들어서는 동안에도 계속 좁아지는
+      // 모습을 보여줘 "더 당기면 닫힌다"는 걸 시각적으로 미리 알 수 있게 한다.
+      const w = rawW >= MIN ? Math.min(MAX, rawW) : Math.max(COLLAPSE_FLOOR, rawW)
       which === 'sidebar' ? setSidebarWidth(w) : setDetailWidth(w)
     }
     const onUp = () => {
@@ -122,6 +129,9 @@ export default function App() {
       if (lastRawW < SNAP_W) {
         if (which === 'sidebar') { setSidebarOpen(false); setSidebarWidth(DEFAULT_W) }
         else                     { setDetailOpen(false);  setDetailWidth(DEFAULT_W)  }
+      } else if (lastRawW < MIN) {
+        // 닫힘 구간까지는 안 갔지만 미리보기 축소값(<MIN)에서 놓은 경우 실제 최소값으로 스냅
+        which === 'sidebar' ? setSidebarWidth(MIN) : setDetailWidth(MIN)
       }
     }
     document.addEventListener('mousemove', onMove)
@@ -413,11 +423,15 @@ export default function App() {
   const layoutStyle = useMemo(() => ({
     gridTemplateColumns: [
       sidebarOpen ? `${sidebarWidth}px` : '0px',
-      '5px',
+      '8px',
       detailOpen ? `${detailWidth}px` : '0px',
-      '5px',
+      '8px',
       '1fr',
     ].join(' '),
+    // 최소 너비 밑으로 당기는 중(닫힘 판정 구간)에는 옅어지게 해서
+    // "더 당기면 닫힌다"는 신호를 준다
+    '--sidebar-fade': sidebarWidth < SIDEBAR_MIN ? Math.max(0.2, sidebarWidth / SIDEBAR_MIN) : 1,
+    '--detail-fade':  detailWidth  < DETAIL_MIN  ? Math.max(0.2, detailWidth  / DETAIL_MIN)  : 1,
     transition: isResizing
       ? 'none'
       : 'grid-template-columns 0.26s cubic-bezier(0.4,0,0.2,1)',
