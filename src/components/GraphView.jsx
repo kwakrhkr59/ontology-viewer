@@ -156,11 +156,44 @@ export default function GraphView({ ontology, selectedItem, onSelectClass, onSel
       container: containerRef.current,
       style: CY_STYLE,
       layout: { name: 'preset' },
-      wheelSensitivity: 0.3,
+      userZoomingEnabled: false, // 휠/트랙패드 줌은 아래 커스텀 핸들러가 담당
       minZoom: 0.05,
       maxZoom: 5,
     })
     cyRef.current = cy
+
+    // 트랙패드는 제스처 속도에 따라 이벤트당 deltaY 편차가 커서(특히 핀치줌은
+    // wheel+ctrlKey로 합성되어 순간적으로 큰 delta가 튐), 기본 wheelSensitivity만으로는
+    // 작은 움직임에도 화면이 과도하게 확대/축소됨. delta를 클램핑하고 지수 함수로
+    // 완만하게 줌을 적용해 입력 장치에 관계없이 일정한 체감 속도를 유지한다.
+    const WHEEL_ZOOM_DELTA_CLAMP = 40
+    const WHEEL_ZOOM_SENSITIVITY = 0.0015
+    const container = containerRef.current
+
+    const handleWheel = (e) => {
+      e.preventDefault()
+      const target = cyRef.current
+      if (!target) return
+
+      let delta = e.deltaY
+      if (e.deltaMode === 1) delta *= 16
+      else if (e.deltaMode === 2) delta *= container.clientHeight
+
+      delta = Math.max(-WHEEL_ZOOM_DELTA_CLAMP, Math.min(WHEEL_ZOOM_DELTA_CLAMP, delta))
+
+      const factor = Math.exp(-delta * WHEEL_ZOOM_SENSITIVITY)
+      const newZoom = Math.min(
+        target.maxZoom(),
+        Math.max(target.minZoom(), target.zoom() * factor)
+      )
+
+      const rect = container.getBoundingClientRect()
+      target.zoom({
+        level: newZoom,
+        renderedPosition: { x: e.clientX - rect.left, y: e.clientY - rect.top },
+      })
+    }
+    container.addEventListener('wheel', handleWheel, { passive: false })
 
     cy.on('tap', 'node', e => {
       const id = e.target.id()
@@ -178,7 +211,11 @@ export default function GraphView({ ontology, selectedItem, onSelectClass, onSel
     const ro = new ResizeObserver(() => { cy.resize(); cy.fit(undefined, 40) })
     ro.observe(containerRef.current)
 
-    return () => { ro.disconnect(); cy.destroy() }
+    return () => {
+      ro.disconnect()
+      container.removeEventListener('wheel', handleWheel)
+      cy.destroy()
+    }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── colorMode / lang 변경 시 현재 뷰 재빌드 ──────────────
