@@ -14,8 +14,12 @@ function GraphIcon() {
   )
 }
 
+// EN / KO 는 데이터에 해당 언어 라벨이 없어도 항상 노출한다
+// (라벨이 없으면 getDisplayName 이 무태그 라벨 → URI 순으로 폴백)
+const BASE_LANGS = ['en', 'ko']
+
 function sortedLangCodes(langs) {
-  return [...langs].sort((a, b) => {
+  return [...new Set([...BASE_LANGS, ...langs])].sort((a, b) => {
     if (a === 'en') return -1
     if (b === 'en') return 1
     if (a === 'ko') return -1
@@ -76,19 +80,17 @@ export default function Header({ ontology, fileName, onFileLoad, lang, onLangCha
         </div>
       )}
 
-      {availableLangs && availableLangs.size > 1 && (
-        <div className="lang-toggle" title="언어 전환">
-          {sortedLangCodes(availableLangs).map(code => (
-            <button
-              key={code}
-              className={`lang-btn${lang === code ? ' lang-btn--active' : ''}`}
-              onClick={() => onLangChange(code)}
-            >
-              {code.toUpperCase()}
-            </button>
-          ))}
-        </div>
-      )}
+      <div className="lang-toggle" title="언어 전환">
+        {sortedLangCodes(availableLangs || []).map(code => (
+          <button
+            key={code}
+            className={`lang-btn${lang === code ? ' lang-btn--active' : ''}`}
+            onClick={() => onLangChange(code)}
+          >
+            {code.toUpperCase()}
+          </button>
+        ))}
+      </div>
 
       {ontology && (
         <button className="export-btn" onClick={onExport} title="편집된 온톨로지를 TTL로 내보내기">
