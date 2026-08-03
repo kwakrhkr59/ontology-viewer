@@ -182,12 +182,18 @@ export function shorten(uri, prefixes) {
   return localName(uri)
 }
 
+// 'en' 은 라벨 대신 클래스/프로퍼티 이름(URI local name)을 보여준다.
+// 그 외 언어는 해당 언어 라벨 → 무태그 라벨 → 이름 순으로 폴백하며,
+// 다른 언어의 라벨을 대신 노출하지 않는다.
 export function getDisplayName(item, lang = '') {
   const { labels } = item
+  if (lang === 'en') return localName(item.uri)
   if (!labels.length) return localName(item.uri)
   if (lang) {
     const match = labels.find(l => l.lang === lang)
     if (match) return match.value
+    const noLang = labels.find(l => !l.lang)
+    return noLang ? noLang.value : localName(item.uri)
   }
   const noLang = labels.find(l => !l.lang)
   return noLang ? noLang.value : labels[0].value

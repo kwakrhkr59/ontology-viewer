@@ -85,6 +85,7 @@ export default function Header({ ontology, fileName, onFileLoad, lang, onLangCha
           <button
             key={code}
             className={`lang-btn${lang === code ? ' lang-btn--active' : ''}`}
+            title={code === 'en' ? '클래스/프로퍼티 이름으로 표시' : `${code.toUpperCase()} 라벨로 표시`}
             onClick={() => onLangChange(code)}
           >
             {code.toUpperCase()}
