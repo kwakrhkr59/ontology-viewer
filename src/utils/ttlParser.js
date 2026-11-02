@@ -20,6 +20,9 @@ const R = {
   Asymmetric:  'http://www.w3.org/2002/07/owl#AsymmetricProperty',
   Reflexive:   'http://www.w3.org/2002/07/owl#ReflexiveProperty',
   Irreflexive: 'http://www.w3.org/2002/07/owl#IrreflexiveProperty',
+  unionOf:     'http://www.w3.org/2002/07/owl#unionOf',
+  first:       'http://www.w3.org/1999/02/22-rdf-syntax-ns#first',
+  rest:        'http://www.w3.org/1999/02/22-rdf-syntax-ns#rest',
 }
 
 function extractPrefixes(text) {
@@ -61,6 +64,40 @@ export function parseTTLText(text) {
 
   const hasType = (subj, type) =>
     store.countQuads(subj, R.type, type, null) > 0
+
+  const listMembers = (head) => {
+    const members = []
+    const seen = new Set()
+    let node = head
+    while (node && node.termType === 'BlankNode' && !seen.has(node.value)) {
+      seen.add(node.value)
+      store.getQuads(node, R.first, null, null).forEach(q => {
+        if (q.object.termType === 'NamedNode') members.push(q.object.value)
+      })
+      node = store.getQuads(node, R.rest, null, null)[0]?.object
+    }
+    return members
+  }
+
+  // domain/range 값을 읽는다. owl:unionOf 는 멤버로 풀어 uris 에 넣고,
+  // 내보낼 때 다시 묶을 수 있도록 unions 에 그룹을 남긴다.
+  const targets = (subj, pred) => {
+    const uris = new Set()
+    const unions = []
+    store.getQuads(subj, pred, null, null).forEach(q => {
+      if (q.object.termType === 'NamedNode') {
+        uris.add(q.object.value)
+      } else if (q.object.termType === 'BlankNode') {
+        store.getQuads(q.object, R.unionOf, null, null).forEach(u => {
+          const members = listMembers(u.object)
+          if (!members.length) return
+          members.forEach(m => uris.add(m))
+          unions.push(members)
+        })
+      }
+    })
+    return { uris: [...uris], unions }
+  }
 
   // ── Classes ──────────────────────────────────────────────
   // n3 는 blank node 값을 '_:' 없이 'n3-0' 형태로 주므로 termType 으로 걸러야 한다.
@@ -108,18 +145,16 @@ export function parseTTLText(text) {
     if (hasType(uri, R.Asymmetric))  chars.push('Asymmetric')
     if (hasType(uri, R.Reflexive))   chars.push('Reflexive')
     if (hasType(uri, R.Irreflexive)) chars.push('Irreflexive')
-    const domains = store.getQuads(uri, R.domain, null, null)
-      .filter(q2 => q2.object.termType === 'NamedNode')
-      .map(q2 => q2.object.value)
-    const ranges = store.getQuads(uri, R.range, null, null)
-      .filter(q2 => q2.object.termType === 'NamedNode')
-      .map(q2 => q2.object.value)
+    const { uris: domains, unions: domainUnions } = targets(uri, R.domain)
+    const { uris: ranges, unions: rangeUnions } = targets(uri, R.range)
     objectProperties[uri] = {
       uri,
       labels:          labelVals(uri, R.label),
       comments:        labelVals(uri, R.comment),
       domains,
       ranges,
+      domainUnions,
+      rangeUnions,
       inverseOf:       vals(uri, R.inverseOf),
       characteristics: chars,
     }
@@ -132,15 +167,16 @@ export function parseTTLText(text) {
   store.getQuads(null, R.type, R.DataProp, null).forEach(q => {
     if (q.subject.termType !== 'NamedNode') return
     const uri = q.subject.value
-    const domains = store.getQuads(uri, R.domain, null, null)
-      .filter(q2 => q2.object.termType === 'NamedNode')
-      .map(q2 => q2.object.value)
+    const { uris: domains, unions: domainUnions } = targets(uri, R.domain)
+    const { uris: ranges, unions: rangeUnions } = targets(uri, R.range)
     dataProperties[uri] = {
       uri,
       labels:   labelVals(uri, R.label),
       comments: labelVals(uri, R.comment),
       domains,
-      ranges:   vals(uri, R.range),
+      ranges,
+      domainUnions,
+      rangeUnions,
     }
     domains.forEach(d => { if (classes[d]) classes[d].dataProps.push(uri) })
   })
@@ -150,14 +186,16 @@ export function parseTTLText(text) {
   store.getQuads(null, R.type, R.AnnProp, null).forEach(q => {
     if (q.subject.termType !== 'NamedNode') return
     const uri = q.subject.value
+    const { uris: domains, unions: domainUnions } = targets(uri, R.domain)
+    const { uris: ranges, unions: rangeUnions } = targets(uri, R.range)
     annotationProperties[uri] = {
       uri,
       labels:   labelVals(uri, R.label),
       comments: labelVals(uri, R.comment),
-      domains:  store.getQuads(uri, R.domain, null, null)
-        .filter(q2 => q2.object.termType === 'NamedNode')
-        .map(q2 => q2.object.value),
-      ranges:   vals(uri, R.range),
+      domains,
+      ranges,
+      domainUnions,
+      rangeUnions,
     }
   })
 

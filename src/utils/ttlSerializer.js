@@ -39,6 +39,23 @@ function block(out, subj, pairs) {
   out.push('')
 }
 
+// 같은 술어를 반복하면 교집합이 되므로, union 이었던 멤버는 owl:unionOf 로 다시 묶는다.
+// 편집으로 빠진 멤버는 제외하고, 어느 union 에도 없는 값은 개별 트리플로 쓴다.
+function targetPairs(pred, uris, unions = [], s, type = 'owl:Class') {
+  const pairs = []
+  unions.forEach(group => {
+    const members = group.filter(u => uris.includes(u))
+    if (members.length === 1) pairs.push([pred, s(members[0])])
+    if (members.length > 1) {
+      pairs.push([pred, `[ a ${type} ; owl:unionOf ( ${members.map(s).join(' ')} ) ]`])
+    }
+  })
+  uris
+    .filter(u => !unions.some(group => group.includes(u)))
+    .forEach(u => pairs.push([pred, s(u)]))
+  return pairs
+}
+
 export function serializeToTTL({ prefixes, classes, objectProperties, dataProperties, annotationProperties }) {
   const allPfx = { ...STD, ...prefixes }
   const s = (uri) => shorten(uri, allPfx)
@@ -69,8 +86,8 @@ export function serializeToTTL({ prefixes, classes, objectProperties, dataProper
     const pairs = types.map(t => ['a', t])
     prop.labels.forEach(l => pairs.push(['rdfs:label', lit(l.value, l.lang)]))
     prop.comments.forEach(c => pairs.push(['rdfs:comment', lit(c.value, c.lang)]))
-    prop.domains.forEach(d => pairs.push(['rdfs:domain', s(d)]))
-    prop.ranges.forEach(r => pairs.push(['rdfs:range', s(r)]))
+    pairs.push(...targetPairs('rdfs:domain', prop.domains, prop.domainUnions, s))
+    pairs.push(...targetPairs('rdfs:range', prop.ranges, prop.rangeUnions, s))
     prop.inverseOf.forEach(inv => pairs.push(['owl:inverseOf', s(inv)]))
     block(out, s(prop.uri), pairs)
   }
@@ -80,8 +97,8 @@ export function serializeToTTL({ prefixes, classes, objectProperties, dataProper
     const pairs = [['a', 'owl:DatatypeProperty']]
     prop.labels.forEach(l => pairs.push(['rdfs:label', lit(l.value, l.lang)]))
     prop.comments.forEach(c => pairs.push(['rdfs:comment', lit(c.value, c.lang)]))
-    prop.domains.forEach(d => pairs.push(['rdfs:domain', s(d)]))
-    prop.ranges.forEach(r => pairs.push(['rdfs:range', s(r)]))
+    pairs.push(...targetPairs('rdfs:domain', prop.domains, prop.domainUnions, s))
+    pairs.push(...targetPairs('rdfs:range', prop.ranges, prop.rangeUnions, s, 'rdfs:Datatype'))
     block(out, s(prop.uri), pairs)
   }
 
@@ -90,8 +107,8 @@ export function serializeToTTL({ prefixes, classes, objectProperties, dataProper
     const pairs = [['a', 'owl:AnnotationProperty']]
     prop.labels.forEach(l => pairs.push(['rdfs:label', lit(l.value, l.lang)]))
     prop.comments.forEach(c => pairs.push(['rdfs:comment', lit(c.value, c.lang)]))
-    prop.domains.forEach(d => pairs.push(['rdfs:domain', s(d)]))
-    prop.ranges.forEach(r => pairs.push(['rdfs:range', s(r)]))
+    pairs.push(...targetPairs('rdfs:domain', prop.domains, prop.domainUnions, s))
+    pairs.push(...targetPairs('rdfs:range', prop.ranges, prop.rangeUnions, s))
     block(out, s(prop.uri), pairs)
   }
 
