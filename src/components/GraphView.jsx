@@ -1,8 +1,20 @@
 import { useRef, useEffect, useLayoutEffect, useCallback, useState, useMemo } from 'react'
 import cytoscape from 'cytoscape'
+import fcose from 'cytoscape-fcose'
 import { getDisplayName, shorten } from '../utils/ttlParser'
 
-const LAYOUTS = ['cose', 'breadthfirst', 'circle', 'grid']
+cytoscape.use(fcose)
+
+const LAYOUTS = ['fcose', 'breadthfirst', 'circle', 'grid']
+
+// subClassOf 는 짧게, 관계 간선은 길게 두어 상하위 묶음이 뭉쳐 보이게 한다.
+const FCOSE_OPTIONS = {
+  quality: 'proof',
+  numIter: 2500,
+  nodeRepulsion: 15000,
+  nodeSeparation: 100,
+  idealEdgeLength: edge => (edge.hasClass('subclass') ? 100 : 180),
+}
 
 const PALETTE = [
   { bg: '#EEF2FF', border: '#6366F1' },
@@ -390,17 +402,7 @@ export default function GraphView({ ontology, selectedItem, onSelectClass, onSel
       }))
     })
 
-    cy.elements().remove()
-    cy.add([...nodes.values(), ...edges])
-    cy.layout({
-      name: 'cose',
-      animate: true,
-      animationDuration: 500,
-      padding: 50,
-      nodeRepulsion: 10000,
-      idealEdgeLength: 150,
-      nodeDimensionsIncludeLabels: true,
-    }).run()
+    applyGraph(cy, [...nodes.values(), ...edges])
   }
 
   function applyGraph(cy, elements) {
@@ -417,8 +419,7 @@ export default function GraphView({ ontology, selectedItem, onSelectClass, onSel
       animationDuration: 350,
       padding: 50,
       nodeDimensionsIncludeLabels: true,
-      nodeRepulsion: 6000,
-      idealEdgeLength: 130,
+      ...(layoutName === 'fcose' ? FCOSE_OPTIONS : {}),
     }).run()
   }
 
