@@ -49,7 +49,9 @@ export function parseTTLText(text) {
   store.addQuads(quads)
 
   const vals = (subj, pred) =>
-    store.getQuads(subj, pred, null, null).map(q => q.object.value)
+    store.getQuads(subj, pred, null, null)
+      .filter(q => q.object.termType === 'NamedNode')
+      .map(q => q.object.value)
 
   const labelVals = (subj, pred) =>
     store.getQuads(subj, pred, null, null).map(q => ({
@@ -61,17 +63,18 @@ export function parseTTLText(text) {
     store.countQuads(subj, R.type, type, null) > 0
 
   // ── Classes ──────────────────────────────────────────────
+  // n3 는 blank node 값을 '_:' 없이 'n3-0' 형태로 주므로 termType 으로 걸러야 한다.
   const classUris = new Set()
-  store.getQuads(null, R.type, R.Class, null).forEach(q => classUris.add(q.subject.value))
-  store.getQuads(null, R.type, R.rdfsClass, null).forEach(q => classUris.add(q.subject.value))
+  const addClass = term => { if (term.termType === 'NamedNode') classUris.add(term.value) }
+  store.getQuads(null, R.type, R.Class, null).forEach(q => addClass(q.subject))
+  store.getQuads(null, R.type, R.rdfsClass, null).forEach(q => addClass(q.subject))
   store.getQuads(null, R.subClassOf, null, null).forEach(q => {
-    if (!q.subject.value.startsWith('_:')) classUris.add(q.subject.value)
-    if (q.object.termType === 'NamedNode') classUris.add(q.object.value)
+    addClass(q.subject)
+    addClass(q.object)
   })
 
   const classes = {}
   classUris.forEach(uri => {
-    if (uri.startsWith('_:')) return
     classes[uri] = {
       uri,
       labels:       labelVals(uri, R.label),
@@ -95,8 +98,8 @@ export function parseTTLText(text) {
   // ── Object Properties ─────────────────────────────────────
   const objectProperties = {}
   store.getQuads(null, R.type, R.ObjProp, null).forEach(q => {
+    if (q.subject.termType !== 'NamedNode') return
     const uri = q.subject.value
-    if (uri.startsWith('_:')) return
     const chars = []
     if (hasType(uri, R.Functional))  chars.push('Functional')
     if (hasType(uri, R.InvFunc))     chars.push('InverseFunctional')
@@ -127,8 +130,8 @@ export function parseTTLText(text) {
   // ── Data Properties ───────────────────────────────────────
   const dataProperties = {}
   store.getQuads(null, R.type, R.DataProp, null).forEach(q => {
+    if (q.subject.termType !== 'NamedNode') return
     const uri = q.subject.value
-    if (uri.startsWith('_:')) return
     const domains = store.getQuads(uri, R.domain, null, null)
       .filter(q2 => q2.object.termType === 'NamedNode')
       .map(q2 => q2.object.value)
@@ -145,8 +148,8 @@ export function parseTTLText(text) {
   // ── Annotation Properties ─────────────────────────────────
   const annotationProperties = {}
   store.getQuads(null, R.type, R.AnnProp, null).forEach(q => {
+    if (q.subject.termType !== 'NamedNode') return
     const uri = q.subject.value
-    if (uri.startsWith('_:')) return
     annotationProperties[uri] = {
       uri,
       labels:   labelVals(uri, R.label),
