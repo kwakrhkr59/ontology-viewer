@@ -230,16 +230,18 @@ export default function GraphView({ ontology, selectedItem, onSelectClass, onSel
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── colorMode / lang 변경 시 현재 뷰 재빌드 ──────────────
+  // ── colorMode / lang 변경 시 배치는 유지하고 표시만 갱신 ──
   useEffect(() => {
     const cy  = cyRef.current
     const ont = ontologyRef.current
-    const view = currentView.current
-    if (!cy || !ont || !view) return
+    if (!cy || !ont) return
 
-    if      (view.type === 'class') buildClassGraph(cy, ont, view.uri)
-    else if (view.type === 'prop')  buildPropGraph(cy, ont, view.uri, view.propType)
-    else if (view.type === 'full')  buildFullGraph(cy, ont)
+    cy.nodes().forEach(node => node.data(makeNodeData(node.id(), ont)))
+    cy.edges('[propUri]').forEach(edge => {
+      const uri  = edge.data('propUri')
+      const prop = ont.objectProperties[uri] ?? ont.dataProperties[uri]
+      if (prop) edge.data('label', getDisplayName(prop, langRef.current))
+    })
   }, [colorMap, lang]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── 선택 항목 변경 ─────────────────────────────────────────
@@ -361,9 +363,7 @@ export default function GraphView({ ontology, selectedItem, onSelectClass, onSel
     })
     prop.domains.forEach(d =>
       prop.ranges.forEach(r => {
-        const edgeData = { id: `${uri}_${d}_${r}`, source: d, target: r, label }
-        if (type === 'objectProperty') edgeData.propUri = uri
-        edges.push({ data: edgeData })
+        edges.push({ data: { id: `${uri}_${d}_${r}`, source: d, target: r, label, propUri: uri } })
       })
     )
 
